@@ -1,0 +1,25 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    color-scheme: dark;
+    accent-color: #10b981;
+    scrollbar-color: #27272a #09090b;
+    scrollbar-width: thin;
+  }
+
+  body {
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    letter-spacing: -0.01em;
+  }
+
+  code, pre, .font-mono {
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0;
+  }
+
+  /* Apply browser-ui-theming best practice: only style validity after user interaction, excluding range sliders */
+  input:not(input[type="range"]):user-invalid {
+    border-color: #f43f5e;
+  }
+}
