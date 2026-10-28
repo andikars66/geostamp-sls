@@ -140,7 +140,9 @@ export default function App() {
     setUploadedImage(sampleCanvas as any);
     setImageDimensions({ width: sampleCanvas.width, height: sampleCanvas.height });
 
-    fetch('/data/hierarchy.json')
+    const baseUrl = import.meta.env.BASE_URL || './';
+    const cleanBase = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+    fetch(`${cleanBase}data/hierarchy.json`)
       .then((res) => {
         if (!res.ok) throw new Error('Gagal memuat daftar wilayah');
         return res.json();

@@ -20,7 +20,9 @@ export async function loadKecamatanBoundaries(kdkec: string): Promise<BoundaryCo
     return cached;
   }
 
-  const response = await fetch(`/data/boundaries/${kdkec}.json`);
+  const baseUrl = import.meta.env.BASE_URL || './';
+  const cleanBase = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+  const response = await fetch(`${cleanBase}data/boundaries/${kdkec}.json`);
   if (!response.ok) {
     throw new Error(`Gagal memuat batas wilayah kecamatan ${kdkec}`);
   }
