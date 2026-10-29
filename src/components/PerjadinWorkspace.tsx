@@ -13,6 +13,8 @@ import {
   FolderArchive,
   Layers,
   SlidersHorizontal,
+  FileSpreadsheet,
+  Upload,
 } from 'lucide-react';
 import type { BulkPhotoItem, StampConfig } from '../types';
 import {
@@ -43,6 +45,9 @@ interface PerjadinWorkspaceProps {
   globalStampConfig: StampConfig;
   initialSubMode?: 'single' | 'bulk';
   onNavigateToStamp: (mode: 'single' | 'bulk') => void;
+  onImportSpreadsheet?: (file: File) => Promise<boolean>;
+  onDownloadExcelTemplate?: () => void;
+  onUpdateBulkItem?: (id: string, patch: Partial<BulkPhotoItem>) => void;
 }
 
 export const PerjadinWorkspace: React.FC<PerjadinWorkspaceProps> = ({
@@ -54,6 +59,9 @@ export const PerjadinWorkspace: React.FC<PerjadinWorkspaceProps> = ({
   globalStampConfig,
   initialSubMode = 'single',
   onNavigateToStamp,
+  onImportSpreadsheet,
+  onDownloadExcelTemplate,
+  onUpdateBulkItem,
 }) => {
   // Mode selection inside Perjadin: 'single' (1 Laporan) or 'bulk' (Banyak Laporan)
   const [subMode, setSubMode] = useState<'single' | 'bulk'>(() => {
@@ -92,6 +100,23 @@ export const PerjadinWorkspace: React.FC<PerjadinWorkspaceProps> = ({
   // Export progress state
   const [isExporting, setIsExporting] = useState<boolean>(false);
   const [exportProgress, setExportProgress] = useState<{ current: number; total: number; label: string } | null>(null);
+
+  // Spreadsheet import refs & status in Perjadin workspace
+  const spreadsheetInputRef = React.useRef<HTMLInputElement | null>(null);
+  const [importStatusMsg, setImportStatusMsg] = useState<string | null>(null);
+
+  const handleSpreadsheetFileInput = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !onImportSpreadsheet) return;
+
+    const ok = await onImportSpreadsheet(file);
+    if (ok) {
+      setSubMode('bulk');
+      setImportStatusMsg('Data parameter laporan dari Excel/CSV berhasil diterapkan ke daftar.');
+      setTimeout(() => setImportStatusMsg(null), 5000);
+    }
+  };
 
   // Update default values when props change
   useEffect(() => {
@@ -167,6 +192,9 @@ export const PerjadinWorkspace: React.FC<PerjadinWorkspaceProps> = ({
 
   // Helper to extract clean destination string for a bulk item
   const getBulkItemTujuan = (item: BulkPhotoItem): string => {
+    if (item.tujuanPerjadin && item.tujuanPerjadin.trim()) {
+      return item.tujuanPerjadin.trim();
+    }
     if (item.regionInfo) {
       const parts = [];
       if (item.regionInfo.nmsls) parts.push(item.regionInfo.nmsls);
@@ -196,16 +224,25 @@ export const PerjadinWorkspace: React.FC<PerjadinWorkspaceProps> = ({
     const dates = formatFormalIndonesianDate(activeBulkItem.dateStr);
     const presetId = bulkItemPresets[activeBulkItem.id] || 'pengawasan-baik';
     const defaultText = URAIAN_PRESETS.find((p) => p.id === presetId)?.text || '';
-    const uraian = bulkItemUraians[activeBulkItem.id] !== undefined ? bulkItemUraians[activeBulkItem.id] : defaultText;
+    const uraian =
+      bulkItemUraians[activeBulkItem.id] !== undefined
+        ? bulkItemUraians[activeBulkItem.id]
+        : (activeBulkItem.uraianKegiatan?.trim() || defaultText);
+
+    const itemNama = activeBulkItem.namaPelaksanaPerjadin?.trim() || nama;
+    const itemJabatan = activeBulkItem.jabatanPelaksanaPerjadin?.trim() || effectiveJabatan;
+    const itemNamaKegiatan = activeBulkItem.namaKegiatanPerjadin?.trim() || namaKegiatan;
+    const itemNomorST = activeBulkItem.nomorSTPerjadin?.trim() || nomorST;
+    const itemTanggalST = activeBulkItem.tanggalSTPerjadin?.trim() || tanggalST;
 
     return {
       id: activeBulkItem.id,
-      nama,
-      jabatan: effectiveJabatan,
+      nama: itemNama,
+      jabatan: itemJabatan,
       asalSatker,
-      namaKegiatan,
-      nomorST,
-      tanggalST,
+      namaKegiatan: itemNamaKegiatan,
+      nomorST: itemNomorST,
+      tanggalST: itemTanggalST,
       tujuan: getBulkItemTujuan(activeBulkItem),
       dateStr: activeBulkItem.dateStr,
       hariTanggal: dates.hariTanggal,
@@ -308,6 +345,9 @@ export const PerjadinWorkspace: React.FC<PerjadinWorkspaceProps> = ({
     const found = URAIAN_PRESETS.find((p) => p.id === presetId);
     if (found) {
       setBulkItemUraians((prev) => ({ ...prev, [itemId]: found.text }));
+      if (onUpdateBulkItem) {
+        onUpdateBulkItem(itemId, { uraianKegiatan: found.text });
+      }
     }
   };
 
@@ -321,6 +361,9 @@ export const PerjadinWorkspace: React.FC<PerjadinWorkspaceProps> = ({
     for (const b of bulkItems) {
       newPresets[b.id] = presetId;
       newUraians[b.id] = found.text;
+      if (onUpdateBulkItem) {
+        onUpdateBulkItem(b.id, { uraianKegiatan: found.text });
+      }
     }
     setBulkItemPresets(newPresets);
     setBulkItemUraians(newUraians);
@@ -422,16 +465,25 @@ export const PerjadinWorkspace: React.FC<PerjadinWorkspaceProps> = ({
         const dates = formatFormalIndonesianDate(b.dateStr);
         const presetId = bulkItemPresets[b.id] || 'pengawasan-baik';
         const defaultText = URAIAN_PRESETS.find((p) => p.id === presetId)?.text || '';
-        const uraian = bulkItemUraians[b.id] !== undefined ? bulkItemUraians[b.id] : defaultText;
+        const uraian =
+          bulkItemUraians[b.id] !== undefined
+            ? bulkItemUraians[b.id]
+            : (b.uraianKegiatan?.trim() || defaultText);
+
+        const itemNama = b.namaPelaksanaPerjadin?.trim() || nama;
+        const itemJabatan = b.jabatanPelaksanaPerjadin?.trim() || effectiveJabatan;
+        const itemNamaKegiatan = b.namaKegiatanPerjadin?.trim() || namaKegiatan;
+        const itemNomorST = b.nomorSTPerjadin?.trim() || nomorST;
+        const itemTanggalST = b.tanggalSTPerjadin?.trim() || tanggalST;
 
         const reportData: PerjadinReportItem = {
           id: b.id,
-          nama,
-          jabatan: effectiveJabatan,
+          nama: itemNama,
+          jabatan: itemJabatan,
           asalSatker,
-          namaKegiatan,
-          nomorST,
-          tanggalST,
+          namaKegiatan: itemNamaKegiatan,
+          nomorST: itemNomorST,
+          tanggalST: itemTanggalST,
           tujuan: getBulkItemTujuan(b),
           dateStr: b.dateStr,
           hariTanggal: dates.hariTanggal,
@@ -500,16 +552,25 @@ export const PerjadinWorkspace: React.FC<PerjadinWorkspaceProps> = ({
         const dates = formatFormalIndonesianDate(b.dateStr);
         const presetId = bulkItemPresets[b.id] || 'pengawasan-baik';
         const defaultText = URAIAN_PRESETS.find((p) => p.id === presetId)?.text || '';
-        const uraian = bulkItemUraians[b.id] !== undefined ? bulkItemUraians[b.id] : defaultText;
+        const uraian =
+          bulkItemUraians[b.id] !== undefined
+            ? bulkItemUraians[b.id]
+            : (b.uraianKegiatan?.trim() || defaultText);
+
+        const itemNama = b.namaPelaksanaPerjadin?.trim() || nama;
+        const itemJabatan = b.jabatanPelaksanaPerjadin?.trim() || effectiveJabatan;
+        const itemNamaKegiatan = b.namaKegiatanPerjadin?.trim() || namaKegiatan;
+        const itemNomorST = b.nomorSTPerjadin?.trim() || nomorST;
+        const itemTanggalST = b.tanggalSTPerjadin?.trim() || tanggalST;
 
         const reportData: PerjadinReportItem = {
           id: b.id,
-          nama,
-          jabatan: effectiveJabatan,
+          nama: itemNama,
+          jabatan: itemJabatan,
           asalSatker,
-          namaKegiatan,
-          nomorST,
-          tanggalST,
+          namaKegiatan: itemNamaKegiatan,
+          nomorST: itemNomorST,
+          tanggalST: itemTanggalST,
           tujuan: getBulkItemTujuan(b),
           dateStr: b.dateStr,
           hariTanggal: dates.hariTanggal,
@@ -567,7 +628,7 @@ export const PerjadinWorkspace: React.FC<PerjadinWorkspaceProps> = ({
 
       {/* Sub-Header Toolbar */}
       <div className="bg-zinc-900 border-b border-zinc-800 px-4 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-3 shrink-0">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2.5">
           {/* SubMode Toggle: Satuan vs Massal */}
           <div className="inline-flex p-1 bg-zinc-950 rounded-xl border border-zinc-800 text-xs">
             <button
@@ -594,6 +655,42 @@ export const PerjadinWorkspace: React.FC<PerjadinWorkspaceProps> = ({
               <Layers className="w-3.5 h-3.5" />
               <span>Perjadin Massal ({bulkItems.length})</span>
             </button>
+          </div>
+
+          {/* Quick Excel Action Buttons in Toolbar (Always Visible) */}
+          <div className="flex items-center gap-1.5 sm:border-l sm:border-zinc-800 sm:pl-2.5">
+            {onImportSpreadsheet && (
+              <>
+                <input
+                  ref={spreadsheetInputRef}
+                  type="file"
+                  accept=".xlsx,.xls,.csv"
+                  onChange={handleSpreadsheetFileInput}
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => spreadsheetInputRef.current?.click()}
+                  className="px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-100 text-xs font-semibold border border-zinc-700 hover:border-emerald-500/70 transition cursor-pointer flex items-center gap-1.5 shadow-xs"
+                  title="Impor parameter laporan dan stempel dari file Excel atau CSV"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Impor Excel/CSV</span>
+                </button>
+              </>
+            )}
+
+            {onDownloadExcelTemplate && (
+              <button
+                type="button"
+                onClick={onDownloadExcelTemplate}
+                className="px-2.5 py-1.5 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 text-xs border border-zinc-800 transition cursor-pointer flex items-center gap-1.5"
+                title="Unduh format template Excel terpadu (Stempel + Laporan Perjadin)"
+              >
+                <Download className="w-3.5 h-3.5 text-zinc-400" />
+                <span className="hidden sm:inline">Template Excel</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -645,6 +742,23 @@ export const PerjadinWorkspace: React.FC<PerjadinWorkspaceProps> = ({
           )}
         </div>
       </div>
+
+      {/* Status Alert Notification Banner */}
+      {importStatusMsg && (
+        <div className="bg-emerald-950/90 border-b border-emerald-500/50 px-4 sm:px-6 py-2.5 flex items-center justify-between gap-3 text-xs text-emerald-200">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span>{importStatusMsg}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setImportStatusMsg(null)}
+            className="text-emerald-400 hover:text-emerald-200 font-semibold cursor-pointer text-xs"
+          >
+            Tutup
+          </button>
+        </div>
+      )}
 
       {/* Main Workspace Body */}
       <div className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start overflow-hidden">
@@ -858,8 +972,41 @@ export const PerjadinWorkspace: React.FC<PerjadinWorkspaceProps> = ({
                   Daftar Foto ({bulkItems.length})
                 </span>
 
-                {/* Batch preset shortcut */}
-                <div className="flex items-center gap-1.5">
+                {/* Import & Template buttons & Batch preset shortcut */}
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {onImportSpreadsheet && (
+                    <>
+                      <input
+                        ref={spreadsheetInputRef}
+                        type="file"
+                        accept=".xlsx,.xls,.csv"
+                        onChange={handleSpreadsheetFileInput}
+                        className="hidden"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => spreadsheetInputRef.current?.click()}
+                        className="px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-[11px] font-medium border border-zinc-700 transition cursor-pointer flex items-center gap-1.5"
+                        title="Impor parameter laporan dan stempel dari file Excel atau CSV"
+                      >
+                        <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Impor Excel</span>
+                      </button>
+                    </>
+                  )}
+
+                  {onDownloadExcelTemplate && (
+                    <button
+                      type="button"
+                      onClick={onDownloadExcelTemplate}
+                      className="px-2.5 py-1 rounded-lg bg-zinc-950 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 text-[11px] border border-zinc-800 transition cursor-pointer flex items-center gap-1"
+                      title="Unduh template Excel terpadu (Stempel + Laporan)"
+                    >
+                      <Download className="w-3 h-3" />
+                      <span>Template</span>
+                    </button>
+                  )}
+
                   <select
                     onChange={(e) => {
                       if (e.target.value) handleApplyPresetToAllBulk(e.target.value);
@@ -868,7 +1015,7 @@ export const PerjadinWorkspace: React.FC<PerjadinWorkspaceProps> = ({
                     className="px-2 py-1 rounded-lg bg-zinc-950 border border-zinc-700 text-zinc-300 text-[11px]"
                   >
                     <option value="" disabled>
-                      Terapkan Preset Serentak...
+                      Preset Serentak...
                     </option>
                     {URAIAN_PRESETS.map((p) => (
                       <option key={p.id} value={p.id}>
@@ -879,9 +1026,41 @@ export const PerjadinWorkspace: React.FC<PerjadinWorkspaceProps> = ({
                 </div>
               </div>
 
+              {/* Status message when Excel is imported */}
+              {importStatusMsg && (
+                <div className="p-2.5 rounded-xl bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 text-[11px] flex items-center gap-2">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                  <span>{importStatusMsg}</span>
+                </div>
+              )}
+
               {bulkItems.length === 0 ? (
-                <div className="text-center py-8 text-zinc-500">
-                  Belum ada foto pada antrean bulk. Beralih ke tab &quot;Geostamp Massal&quot; untuk mengunggah foto.
+                <div className="p-6 text-center rounded-2xl bg-zinc-950/60 border border-zinc-800/80 space-y-3">
+                  <Layers className="w-8 h-8 text-zinc-600 mx-auto" />
+                  <p className="text-xs font-medium text-zinc-300">Belum ada foto pada antrean massal</p>
+                  <p className="text-[11px] text-zinc-400 max-w-sm mx-auto">
+                    Unggah foto di Geostamp Massal terlebih dahulu, atau impor file Excel/CSV untuk memetakan parameter kegiatan.
+                  </p>
+                  <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => onNavigateToStamp('bulk')}
+                      className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-semibold transition cursor-pointer flex items-center gap-1.5 shadow-xs"
+                    >
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>Ke Geostamp Massal</span>
+                    </button>
+                    {onImportSpreadsheet && (
+                      <button
+                        type="button"
+                        onClick={() => spreadsheetInputRef.current?.click()}
+                        className="px-3.5 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-100 text-[11px] font-semibold border border-zinc-700 transition cursor-pointer flex items-center gap-1.5 shadow-xs"
+                      >
+                        <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Impor Excel/CSV</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-2.5 max-h-[500px] overflow-y-auto pr-1">
@@ -889,7 +1068,10 @@ export const PerjadinWorkspace: React.FC<PerjadinWorkspaceProps> = ({
                     const dates = formatFormalIndonesianDate(item.dateStr);
                     const currentPresetId = bulkItemPresets[item.id] || 'pengawasan-baik';
                     const defaultText = URAIAN_PRESETS.find((p) => p.id === currentPresetId)?.text || '';
-                    const customText = bulkItemUraians[item.id] !== undefined ? bulkItemUraians[item.id] : defaultText;
+                    const customText =
+                      bulkItemUraians[item.id] !== undefined
+                        ? bulkItemUraians[item.id]
+                        : (item.uraianKegiatan?.trim() || defaultText);
                     const isActive = activeBulkPreviewId === item.id;
 
                     return (
@@ -923,20 +1105,69 @@ export const PerjadinWorkspace: React.FC<PerjadinWorkspaceProps> = ({
                             </div>
                           </div>
 
-                          {/* Active badge */}
-                          {isActive && (
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shrink-0 flex items-center gap-1">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                              Dipratinjau
-                            </span>
-                          )}
+                          <div className="flex flex-wrap items-center gap-1 shrink-0 justify-end">
+                            {item.uraianKegiatan && (
+                              <span
+                                className="px-1.5 py-0.5 rounded text-[9.5px] font-medium bg-emerald-500/15 text-emerald-300 border border-emerald-500/30"
+                                title="Uraian kegiatan diimpor dari Excel"
+                              >
+                                Excel
+                              </span>
+                            )}
+                            {item.nomorSTPerjadin && (
+                              <span
+                                className="px-1.5 py-0.5 rounded text-[9.5px] font-medium bg-blue-500/15 text-blue-300 border border-blue-500/30"
+                                title={`ST Khusus: ${item.nomorSTPerjadin}`}
+                              >
+                                ST
+                              </span>
+                            )}
+                            {item.namaPelaksanaPerjadin && (
+                              <span
+                                className="px-1.5 py-0.5 rounded text-[9.5px] font-medium bg-purple-500/15 text-purple-300 border border-purple-500/30"
+                                title={`Pelaksana: ${item.namaPelaksanaPerjadin}`}
+                              >
+                                {item.namaPelaksanaPerjadin.split(' ')[0]}
+                              </span>
+                            )}
+                            {/* Active badge */}
+                            {isActive && (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                                Dipratinjau
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Tujuan Perjalanan Input (Inline edit) */}
+                        <div
+                          className="pt-1.5 pb-1 border-t border-zinc-800/80 flex items-center gap-1.5 text-[11px]"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveBulkPreviewId(item.id);
+                          }}
+                        >
+                          <MapPin className="w-3 h-3 text-emerald-400 shrink-0" />
+                          <span className="shrink-0 text-zinc-400 text-[10px]">Tujuan:</span>
+                          <input
+                            type="text"
+                            value={item.tujuanPerjadin ?? ''}
+                            placeholder={getBulkItemTujuan(item)}
+                            onChange={(e) => {
+                              if (onUpdateBulkItem) {
+                                onUpdateBulkItem(item.id, { tujuanPerjadin: e.target.value });
+                              }
+                            }}
+                            className="flex-1 px-2 py-0.5 rounded bg-zinc-950/80 border border-zinc-800 text-zinc-200 text-[10.5px] focus:outline-hidden focus:border-emerald-500"
+                            title="Tujuan perjalanan spesifik untuk laporan Word"
+                          />
                         </div>
 
                         {/* Dropdown Preset & Textarea per baris */}
                         <div
-                          className="space-y-1.5 pt-1.5 border-t border-zinc-800/80"
-                          onClick={(e) => {
-                            // Keep card activated on focus/click inside
+                          className="space-y-1.5 pt-1"
+                          onClick={() => {
                             setActiveBulkPreviewId(item.id);
                           }}
                         >
@@ -963,6 +1194,9 @@ export const PerjadinWorkspace: React.FC<PerjadinWorkspaceProps> = ({
                             onChange={(e) => {
                               const val = e.target.value;
                               setBulkItemUraians((prev) => ({ ...prev, [item.id]: val }));
+                              if (onUpdateBulkItem) {
+                                onUpdateBulkItem(item.id, { uraianKegiatan: val });
+                              }
                             }}
                             placeholder="Ketik narasi laporan ini..."
                             className="w-full px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-200 text-[11px] focus:outline-hidden focus:border-emerald-500 leading-relaxed"

@@ -15,6 +15,14 @@ export interface ParsedSpreadsheetRow {
   lokasi?: string;
   koordinat?: string;
   catatan?: string;
+  // Parameter Opsional Laporan Perjalanan Dinas (Perjadin)
+  uraian?: string;
+  tujuan?: string;
+  nama_kegiatan?: string;
+  nomor_st?: string;
+  tanggal_st?: string;
+  nama_pelaksana?: string;
+  jabatan?: string;
 }
 
 /**
@@ -82,6 +90,7 @@ function normalizeExcelDateValue(val: any): string {
 
 /**
  * Parses an uploaded Excel (.xlsx, .xls) or CSV (.csv) file into normalized rows.
+ * Supports both GeoStamp parameters and optional Perjadin report parameters.
  */
 export async function parseBulkSpreadsheetFile(file: File): Promise<ParsedSpreadsheetRow[]> {
   const XLSX = await import('xlsx');
@@ -102,18 +111,92 @@ export async function parseBulkSpreadsheetFile(file: File): Promise<ParsedSpread
       const strVal = String(v ?? '').trim();
       if (!strVal && !(v instanceof Date)) continue;
 
+      // 1. Surat Tugas (Nomor & Tanggal ST)
       if (
-        key.includes('nama') ||
+        key.includes('no_st') ||
+        key.includes('nomor_st') ||
+        key.includes('nost') ||
+        key.includes('surat_tugas') ||
+        key.includes('no_surat') ||
+        key.includes('nomor_surat')
+      ) {
+        entry.nomor_st = strVal;
+      } else if (
+        key.includes('tanggal_st') ||
+        key.includes('tgl_st') ||
+        key.includes('tanggal_surat') ||
+        key.includes('tgl_surat')
+      ) {
+        entry.tanggal_st = normalizeExcelDateValue(v);
+      }
+      // 2. Tujuan Perjadin
+      else if (key.includes('tujuan') || key.includes('destinasi')) {
+        entry.tujuan = strVal;
+      }
+      // 3. Nama Kegiatan vs Uraian Kegiatan
+      else if (
+        key.includes('nama_kegiatan') ||
+        key.includes('nm_kegiatan') ||
+        key.includes('perihal') ||
+        key.includes('judul_kegiatan') ||
+        key === 'kegiatan'
+      ) {
+        entry.nama_kegiatan = strVal;
+      } else if (
+        key.includes('uraian') ||
+        key.includes('narasi') ||
+        key.includes('deskripsi') ||
+        key.includes('hasil')
+      ) {
+        entry.uraian = strVal;
+      }
+      // 4. Nama Pelaksana & Jabatan
+      else if (
+        key.includes('nama_pelaksana') ||
+        key.includes('nama_petugas') ||
+        key.includes('pelaksana') ||
+        key.includes('petugas') ||
+        key.includes('pegawai')
+      ) {
+        entry.nama_pelaksana = strVal;
+      } else if (
+        key.includes('jabatan') ||
+        key.includes('posisi') ||
+        key.includes('peran')
+      ) {
+        entry.jabatan = strVal;
+      }
+      // 5. Nama Foto / File
+      else if (
+        key.includes('nama_foto') ||
         key.includes('file') ||
         key.includes('foto') ||
-        key === 'image'
+        key === 'image' ||
+        key === 'gambar'
       ) {
         entry.nama_foto = strVal;
-      } else if (key.includes('tanggal') || key.includes('tgl') || key.includes('date')) {
+      } else if (key === 'nama') {
+        if (/\.(jpe?g|png|webp|heic|bmp)$/i.test(strVal)) {
+          entry.nama_foto = strVal;
+        } else {
+          entry.nama_pelaksana = strVal;
+        }
+      }
+      // 6. Tanggal Kegiatan Utama
+      else if (key.includes('tanggal') || key.includes('tgl') || key.includes('date')) {
         entry.tanggal = normalizeExcelDateValue(v);
-      } else if (key.includes('jam') || key.includes('waktu') || key.includes('time')) {
+      }
+      // 7. Jam / Waktu
+      else if (
+        key.includes('jam') ||
+        key.includes('waktu') ||
+        key.includes('time') ||
+        key.includes('pukul')
+      ) {
         entry.jam = strVal;
-      } else if (
+      }
+      // 8. Lokasi / SLS / Desa / Kec
+      else if (
         key.includes('lokasi') ||
         key.includes('wilayah') ||
         key.includes('sls') ||
@@ -122,9 +205,22 @@ export async function parseBulkSpreadsheetFile(file: File): Promise<ParsedSpread
         key.includes('kec')
       ) {
         entry.lokasi = entry.lokasi ? `${entry.lokasi} ${strVal}` : strVal;
-      } else if (key.includes('koord') || key.includes('lat') || key.includes('coord')) {
+      }
+      // 9. Koordinat
+      else if (
+        key.includes('koord') ||
+        key.includes('lat') ||
+        key.includes('coord') ||
+        key.includes('gps')
+      ) {
         entry.koordinat = strVal;
-      } else if (key.includes('catat') || key.includes('ket') || key.includes('note')) {
+      }
+      // 10. Catatan Watermark
+      else if (
+        key.includes('catat') ||
+        key.includes('ket') ||
+        key.includes('note')
+      ) {
         entry.catatan = strVal;
       }
     }
@@ -136,7 +232,14 @@ export async function parseBulkSpreadsheetFile(file: File): Promise<ParsedSpread
       entry.jam ||
       entry.lokasi ||
       entry.koordinat ||
-      entry.catatan
+      entry.catatan ||
+      entry.uraian ||
+      entry.tujuan ||
+      entry.nama_kegiatan ||
+      entry.nomor_st ||
+      entry.tanggal_st ||
+      entry.nama_pelaksana ||
+      entry.jabatan
     ) {
       parsed.push(entry);
     }
@@ -146,7 +249,7 @@ export async function parseBulkSpreadsheetFile(file: File): Promise<ParsedSpread
 }
 
 /**
- * Generates and downloads a ready-to-use Excel (.xlsx) template for Bulk Stamping.
+ * Generates and downloads a ready-to-use unified Excel (.xlsx) template for Bulk Stamping & Laporan Perjadin.
  */
 export async function downloadBulkExcelTemplate(existingItems: BulkPhotoItem[]) {
   const XLSX = await import('xlsx');
@@ -159,8 +262,15 @@ export async function downloadBulkExcelTemplate(existingItems: BulkPhotoItem[]) 
             item.locationInput ||
             (idx % 2 === 0 ? 'Jurit Bebuaq' : '5202050008000501'),
           jam: item.timeStr || '',
-          koordinat: '',
+          koordinat: item.coordStr || '',
           catatan: item.customNote || '',
+          uraian_kegiatan: item.uraianKegiatan || '',
+          tujuan: item.tujuanPerjadin || '',
+          nama_kegiatan: item.namaKegiatanPerjadin || '',
+          nomor_st: item.nomorSTPerjadin || '',
+          tanggal_st: item.tanggalSTPerjadin || '',
+          nama_pelaksana: item.namaPelaksanaPerjadin || '',
+          jabatan: item.jabatanPelaksanaPerjadin || '',
         }))
       : [
           {
@@ -170,14 +280,30 @@ export async function downloadBulkExcelTemplate(existingItems: BulkPhotoItem[]) 
             jam: '09:24:18',
             koordinat: '',
             catatan: '',
+            uraian_kegiatan:
+              'Pendataan lapangan terhadap responden di unit sampel berjalan lancar dan seluruh rincian kuesioner terisi lengkap sesuai SOP.',
+            tujuan: 'Dusun Jurit, Desa Bebuaq',
+            nama_kegiatan: 'Pengawasan Pemutakhiran SAKERNAS Agustus 2026',
+            nomor_st: 'B-123/52020/KP.100/2026',
+            tanggal_st: getTodayDateString(),
+            nama_pelaksana: '',
+            jabatan: '',
           },
           {
             nama_foto: 'IMG_002.jpg',
             tanggal: getTodayDateString(),
             lokasi: 'Dusun Montong Gamang, Kopang',
-            jam: '',
+            jam: '10:15:00',
             koordinat: '',
             catatan: '',
+            uraian_kegiatan:
+              'Pemeriksaan kelengkapan dokumen dan pencocokan batas satuan lingkungan setempat bersama pengurus RT/RW.',
+            tujuan: 'Desa Montong Gamang',
+            nama_kegiatan: '',
+            nomor_st: '',
+            tanggal_st: '',
+            nama_pelaksana: '',
+            jabatan: '',
           },
           {
             nama_foto: 'IMG_003.jpg',
@@ -186,22 +312,210 @@ export async function downloadBulkExcelTemplate(existingItems: BulkPhotoItem[]) 
             jam: '',
             koordinat: '',
             catatan: '',
+            uraian_kegiatan: '',
+            tujuan: '',
+            nama_kegiatan: '',
+            nomor_st: '',
+            tanggal_st: '',
+            nama_pelaksana: '',
+            jabatan: '',
           },
         ];
 
   const ws = XLSX.utils.json_to_sheet(sampleRows);
   ws['!cols'] = [
-    { wch: 24 }, // nama_foto
-    { wch: 15 }, // tanggal
-    { wch: 32 }, // lokasi
-    { wch: 14 }, // jam
+    { wch: 22 }, // nama_foto
+    { wch: 14 }, // tanggal
+    { wch: 30 }, // lokasi
+    { wch: 12 }, // jam
     { wch: 24 }, // koordinat
-    { wch: 28 }, // catatan
+    { wch: 20 }, // catatan
+    { wch: 50 }, // uraian_kegiatan
+    { wch: 28 }, // tujuan
+    { wch: 38 }, // nama_kegiatan
+    { wch: 24 }, // nomor_st
+    { wch: 16 }, // tanggal_st
+    { wch: 22 }, // nama_pelaksana
+    { wch: 24 }, // jabatan
+  ];
+
+  // Petunjuk Kolom Sheet
+  const guideRows = [
+    {
+      Nama_Kolom: 'nama_foto',
+      Kategori: 'Stempel (Wajib / Kunci)',
+      Keterangan: 'Nama file foto persis seperti yang diunggah',
+      Contoh_Isian: 'IMG_001.jpg',
+    },
+    {
+      Nama_Kolom: 'tanggal',
+      Kategori: 'Stempel & Laporan',
+      Keterangan: 'Format YYYY-MM-DD atau DD/MM/YYYY. Kosong = otomatis tanggal hari kerja',
+      Contoh_Isian: '2026-08-15',
+    },
+    {
+      Nama_Kolom: 'lokasi',
+      Kategori: 'Stempel (Wilayah SLS)',
+      Keterangan: 'Teks nama SLS/Dusun/Desa/Kecamatan atau Kode ID SLS 16 digit',
+      Contoh_Isian: 'Jurit Bebuaq atau 5202050008000501',
+    },
+    {
+      Nama_Kolom: 'jam',
+      Kategori: 'Stempel (Waktu)',
+      Keterangan: 'Format HH:MM:SS. Kosong = otomatis jam kerja acak (09:00 - 15:00)',
+      Contoh_Isian: '09:24:18',
+    },
+    {
+      Nama_Kolom: 'koordinat',
+      Kategori: 'Stempel (Opsional)',
+      Keterangan: 'Latitude, Longitude manual. Kosong = auto-sample titik acak di dalam poligon SLS',
+      Contoh_Isian: '-8.672341, 116.321894',
+    },
+    {
+      Nama_Kolom: 'catatan',
+      Kategori: 'Stempel (Opsional)',
+      Keterangan: 'Catatan tambahan yang dicetak pada watermark foto',
+      Contoh_Isian: 'Kegiatan SAKERNAS',
+    },
+    {
+      Nama_Kolom: 'uraian_kegiatan',
+      Kategori: 'Laporan Perjadin (Opsional)',
+      Keterangan: 'Rincian narasi kegiatan perjalanan dinas. Kosong = menggunakan preset di UI',
+      Contoh_Isian: 'Pendataan lapangan terhadap responden sampel berjalan lancar sesuai SOP.',
+    },
+    {
+      Nama_Kolom: 'tujuan',
+      Kategori: 'Laporan Perjadin (Opsional)',
+      Keterangan: 'Tujuan spesifik perjalanan dinas. Kosong = otomatis diturunkan dari nama wilayah SLS',
+      Contoh_Isian: 'Desa Bebuaq, Kecamatan Kopang',
+    },
+    {
+      Nama_Kolom: 'nama_kegiatan',
+      Kategori: 'Laporan Perjadin (Opsional)',
+      Keterangan: 'Perihal / nama kegiatan khusus baris ini. Kosong = menggunakan profil global',
+      Contoh_Isian: 'Pengawasan Lapangan SAKERNAS 2026',
+    },
+    {
+      Nama_Kolom: 'nomor_st',
+      Kategori: 'Laporan Perjadin (Opsional)',
+      Keterangan: 'Nomor Surat Tugas khusus baris ini. Kosong = menggunakan nomor ST profil',
+      Contoh_Isian: 'B-123/52020/KP.100/2026',
+    },
+    {
+      Nama_Kolom: 'tanggal_st',
+      Kategori: 'Laporan Perjadin (Opsional)',
+      Keterangan: 'Tanggal Surat Tugas khusus baris ini. Kosong = menggunakan tanggal ST profil',
+      Contoh_Isian: '12 Juli 2026',
+    },
+    {
+      Nama_Kolom: 'nama_pelaksana',
+      Kategori: 'Laporan Perjadin (Opsional)',
+      Keterangan: 'Nama pelaksana jika kegiatan dinas tim/kolektif. Kosong = profil global',
+      Contoh_Isian: 'Ahmad Fauzi, S.Tr.Stat.',
+    },
+    {
+      Nama_Kolom: 'jabatan',
+      Kategori: 'Laporan Perjadin (Opsional)',
+      Keterangan: 'Jabatan pelaksana. Kosong = profil global',
+      Contoh_Isian: 'Statistisi Ahli Pertama',
+    },
+  ];
+
+  const guideWs = XLSX.utils.json_to_sheet(guideRows);
+  guideWs['!cols'] = [
+    { wch: 18 },
+    { wch: 26 },
+    { wch: 60 },
+    { wch: 40 },
   ];
 
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Bulk_GeoStamp');
-  XLSX.writeFile(wb, 'Template_Bulk_GeoStamp_SLS.xlsx');
+  XLSX.utils.book_append_sheet(wb, ws, 'Bulk_GeoStamp_Perjadin');
+  XLSX.utils.book_append_sheet(wb, guideWs, 'Panduan_Kolom');
+  XLSX.writeFile(wb, 'Template_Bulk_GeoStamp_Perjadin.xlsx');
+}
+
+/**
+ * Applies parsed spreadsheet rows to current BulkPhotoItem list with smart fallback.
+ */
+export async function applyParsedRowsToBulkItems(
+  rows: ParsedSpreadsheetRow[],
+  currentItems: BulkPhotoItem[],
+  hierarchy: HierarchyPayload | null
+): Promise<BulkPhotoItem[]> {
+  const updated: BulkPhotoItem[] = [];
+
+  for (let i = 0; i < currentItems.length; i++) {
+    const item = currentItems[i];
+    const cleanItemName = item.fileName.toLowerCase().trim();
+    const cleanItemBase = cleanItemName.replace(/\.[^/.]+$/, '');
+
+    const matchedRow =
+      rows.find((r) => {
+        if (!r.nama_foto) return false;
+        const rn = r.nama_foto.toLowerCase().trim();
+        const rBase = rn.replace(/\.[^/.]+$/, '');
+        return rn === cleanItemName || rBase === cleanItemBase;
+      }) ?? (i < rows.length ? rows[i] : null);
+
+    if (!matchedRow) {
+      updated.push(item);
+      continue;
+    }
+
+    const rowDate = matchedRow.tanggal || item.dateStr || getTodayDateString();
+    const nextDraft: BulkPhotoItem = {
+      ...item,
+      dateStr: rowDate,
+      dayStr: getIndonesianDayName(rowDate),
+      timeStr: matchedRow.jam || item.timeStr || getRandomWorkingTime(),
+      locationInput:
+        matchedRow.lokasi !== undefined && matchedRow.lokasi !== ''
+          ? matchedRow.lokasi
+          : item.locationInput,
+      coordStr: matchedRow.koordinat || item.coordStr || '',
+      customNote:
+        matchedRow.catatan !== undefined ? matchedRow.catatan : item.customNote,
+      // Optional Perjadin report parameters from Excel
+      uraianKegiatan:
+        matchedRow.uraian !== undefined && matchedRow.uraian.trim() !== ''
+          ? matchedRow.uraian.trim()
+          : item.uraianKegiatan,
+      tujuanPerjadin:
+        matchedRow.tujuan !== undefined && matchedRow.tujuan.trim() !== ''
+          ? matchedRow.tujuan.trim()
+          : item.tujuanPerjadin,
+      namaKegiatanPerjadin:
+        matchedRow.nama_kegiatan !== undefined && matchedRow.nama_kegiatan.trim() !== ''
+          ? matchedRow.nama_kegiatan.trim()
+          : item.namaKegiatanPerjadin,
+      nomorSTPerjadin:
+        matchedRow.nomor_st !== undefined && matchedRow.nomor_st.trim() !== ''
+          ? matchedRow.nomor_st.trim()
+          : item.nomorSTPerjadin,
+      tanggalSTPerjadin:
+        matchedRow.tanggal_st !== undefined && matchedRow.tanggal_st.trim() !== ''
+          ? matchedRow.tanggal_st.trim()
+          : item.tanggalSTPerjadin,
+      namaPelaksanaPerjadin:
+        matchedRow.nama_pelaksana !== undefined && matchedRow.nama_pelaksana.trim() !== ''
+          ? matchedRow.nama_pelaksana.trim()
+          : item.namaPelaksanaPerjadin,
+      jabatanPelaksanaPerjadin:
+        matchedRow.jabatan !== undefined && matchedRow.jabatan.trim() !== ''
+          ? matchedRow.jabatan.trim()
+          : item.jabatanPelaksanaPerjadin,
+    };
+
+    const resolved = await resolveAndSampleBulkItem(
+      nextDraft,
+      hierarchy,
+      Boolean(matchedRow.koordinat)
+    );
+    updated.push(resolved);
+  }
+
+  return updated;
 }
 
 /**

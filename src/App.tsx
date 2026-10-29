@@ -45,6 +45,7 @@ import {
 } from './spatial';
 import { createSamplePlaceholderCanvas, renderStampedCanvas } from './canvasStamper';
 import {
+  applyParsedRowsToBulkItems,
   createThumbnailFromFile,
   downloadBulkExcelTemplate,
   exportBulkPhotosToZip,
@@ -646,71 +647,34 @@ export default function App() {
   };
 
   // Handle Excel / CSV Spreadsheet Upload & Smart Matching
-  const handleSpreadsheetUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
-
+  const handleProcessSpreadsheetFile = async (file: File): Promise<boolean> => {
     try {
       setErrorMsg(null);
       const rows = await parseBulkSpreadsheetFile(file);
       if (rows.length === 0) {
         setErrorMsg('File Excel/CSV kosong atau kolom tidak dikenali.');
-        return;
+        return false;
       }
 
       if (bulkItems.length === 0) {
-        setErrorMsg('Unggah foto-foto Anda terlebih dahulu, lalu impor file Excel/CSV.');
-        return;
+        setErrorMsg('Unggah foto-foto Anda terlebih dahulu di Geostamp Massal, lalu impor file Excel/CSV.');
+        return false;
       }
 
-      // Match by filename if `nama_foto` matches any uploaded photo; otherwise match by row index order
-      const updated: BulkPhotoItem[] = [];
-      for (let i = 0; i < bulkItems.length; i++) {
-        const item = bulkItems[i];
-        const cleanItemName = item.fileName.toLowerCase().trim();
-        const cleanItemBase = cleanItemName.replace(/\.[^/.]+$/, '');
-
-        const matchedRow =
-          rows.find((r) => {
-            if (!r.nama_foto) return false;
-            const rn = r.nama_foto.toLowerCase().trim();
-            const rBase = rn.replace(/\.[^/.]+$/, '');
-            return rn === cleanItemName || rBase === cleanItemBase;
-          }) ?? rows[i];
-
-        if (!matchedRow) {
-          updated.push(item);
-          continue;
-        }
-
-        const rowDate = matchedRow.tanggal || item.dateStr || getTodayDateString();
-        const nextDraft: BulkPhotoItem = {
-          ...item,
-          dateStr: rowDate,
-          dayStr: getIndonesianDayName(rowDate),
-          timeStr: matchedRow.jam || item.timeStr || getRandomWorkingTime(),
-          locationInput:
-            matchedRow.lokasi !== undefined && matchedRow.lokasi !== ''
-              ? matchedRow.lokasi
-              : item.locationInput,
-          coordStr: matchedRow.koordinat || '',
-          customNote:
-            matchedRow.catatan !== undefined ? matchedRow.catatan : item.customNote,
-        };
-
-        const resolved = await resolveAndSampleBulkItem(
-          nextDraft,
-          hierarchy,
-          Boolean(matchedRow.koordinat)
-        );
-        updated.push(resolved);
-      }
-
+      const updated = await applyParsedRowsToBulkItems(rows, bulkItems, hierarchy);
       setBulkItems(updated);
+      return true;
     } catch {
       setErrorMsg('Gagal membaca file Excel/CSV. Pastikan format .xlsx atau .csv valid.');
+      return false;
     }
+  };
+
+  const handleSpreadsheetUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    await handleProcessSpreadsheetFile(file);
   };
 
   // Remove a photo from Bulk Queue and free its thumbnail ObjectURL
@@ -1128,6 +1092,9 @@ export default function App() {
           globalStampConfig={config}
           initialSubMode={perjadinInitialSubMode}
           onNavigateToStamp={(targetMode) => setAppMode(targetMode)}
+          onImportSpreadsheet={handleProcessSpreadsheetFile}
+          onDownloadExcelTemplate={() => downloadBulkExcelTemplate(bulkItems)}
+          onUpdateBulkItem={handleUpdateBulkRow}
         />
       ) : (
         <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">

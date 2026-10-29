@@ -131,4 +131,12 @@ export interface BulkPhotoItem {
   coordStr: string;
   tagStr: string;
   customNote: string;
+  // Optional Perjadin Report parameters (via Excel/CSV or manual entry)
+  uraianKegiatan?: string;
+  tujuanPerjadin?: string;
+  namaKegiatanPerjadin?: string;
+  nomorSTPerjadin?: string;
+  tanggalSTPerjadin?: string;
+  namaPelaksanaPerjadin?: string;
+  jabatanPelaksanaPerjadin?: string;
 }
