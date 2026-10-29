@@ -22,4 +22,56 @@
   input:not(input[type="range"]):user-invalid {
     border-color: #f43f5e;
   }
+
+  /* Accessible Modal Dialog modern standards */
+  dialog:modal {
+    overscroll-behavior: contain;
+  }
+  dialog::backdrop {
+    overflow: hidden;
+    overscroll-behavior: contain;
+    background-color: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(4px);
+  }
+}
+
+/* Print Styles for Laporan Perjalanan Dinas */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm;
+  }
+
+  body {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  /* Hide app UI when printing */
+  body > * {
+    visibility: hidden !important;
+  }
+
+  /* Expose printable sheets container */
+  #perjadin-print-container,
+  #perjadin-print-container * {
+    visibility: visible !important;
+  }
+
+  #perjadin-print-container {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+  }
+
+  .perjadin-page-break {
+    page-break-after: always;
+    break-after: page;
+  }
 }

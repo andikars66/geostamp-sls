@@ -21,7 +21,9 @@ import {
   AlertCircle,
   Images,
   Image as ImageIcon,
+  FileText,
 } from 'lucide-react';
+import { PerjadinWorkspace } from './components/PerjadinWorkspace';
 import type {
   BoundaryFeature,
   BulkPhotoItem,
@@ -62,8 +64,9 @@ interface SearchIndexEntry {
 }
 
 export default function App() {
-  // Mode Toggle: 'single' (Default per AGENTS.md) | 'bulk'
-  const [appMode, setAppMode] = useState<'single' | 'bulk'>('single');
+  // Mode Toggle: 'single' (Default per AGENTS.md) | 'bulk' | 'perjadin'
+  const [appMode, setAppMode] = useState<'single' | 'bulk' | 'perjadin'>('single');
+  const [perjadinInitialSubMode, setPerjadinInitialSubMode] = useState<'single' | 'bulk'>('single');
 
   // 1. Spatial Hierarchy Data State
   const [hierarchy, setHierarchy] = useState<HierarchyPayload | null>(null);
@@ -124,6 +127,10 @@ export default function App() {
     total: number;
     fileName: string;
   }>({ active: false, current: 0, total: 0, fileName: '' });
+
+  // 7. Laporan Perjalanan Dinas (Perjadin) State
+  const [currentStampedBlob, setCurrentStampedBlob] = useState<Blob | null>(null);
+  const [currentStampedDataUrl, setCurrentStampedDataUrl] = useState<string | null>(null);
 
   const previewCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -821,6 +828,97 @@ export default function App() {
     );
   };
 
+  // Helper to render current active stamped canvas into Blob and DataURL
+  const prepareSingleStampedImage = () => {
+    const sourceImg =
+      appMode === 'bulk' && activeBulkBitmap ? activeBulkBitmap : uploadedImage;
+    if (!sourceImg) return;
+
+    const exportCanvas = document.createElement('canvas');
+    exportCanvas.width = sourceImg.width;
+    exportCanvas.height = sourceImg.height;
+
+    if (appMode === 'bulk' && activeBulkItem) {
+      const bulkExportConfig: StampConfig = {
+        ...config,
+        dateStr: activeBulkItem.dateStr,
+        timeStr: activeBulkItem.timeStr,
+        coordStr: activeBulkItem.coordStr,
+        tagStr: activeBulkItem.tagStr,
+        customNote: activeBulkItem.customNote || config.customNote,
+      };
+      renderStampedCanvas(
+        exportCanvas,
+        sourceImg as any,
+        bulkExportConfig,
+        activeBulkItem.regionInfo,
+        activeBulkItem.activeFeature,
+        sourceImg.width,
+        sourceImg.height
+      );
+    } else {
+      renderStampedCanvas(
+        exportCanvas,
+        sourceImg as any,
+        config,
+        regionInfo,
+        activeFeature,
+        sourceImg.width,
+        sourceImg.height
+      );
+    }
+
+    exportCanvas.toBlob(
+      (blob) => {
+        if (!blob) return;
+        setCurrentStampedBlob(blob);
+        const dataUrl = exportCanvas.toDataURL('image/jpeg', 0.88);
+        setCurrentStampedDataUrl(dataUrl);
+      },
+      'image/jpeg',
+      0.90
+    );
+  };
+
+  // Open Perjadin Workspace in Single SubMode
+  const handleOpenSinglePerjadin = () => {
+    prepareSingleStampedImage();
+    setPerjadinInitialSubMode('single');
+    setAppMode('perjadin');
+  };
+
+  // Open Perjadin Workspace in Bulk SubMode
+  const handleOpenBulkPerjadin = () => {
+    prepareSingleStampedImage();
+    setPerjadinInitialSubMode('bulk');
+    setAppMode('perjadin');
+  };
+
+  const effectiveSingleDateStr =
+    appMode === 'bulk' && activeBulkItem ? activeBulkItem.dateStr : config.dateStr;
+
+  const effectiveSingleTujuan = useMemo(() => {
+    if (appMode === 'bulk' && activeBulkItem) {
+      if (activeBulkItem.regionInfo) {
+        const parts = [];
+        if (activeBulkItem.regionInfo.nmsls) parts.push(activeBulkItem.regionInfo.nmsls);
+        if (activeBulkItem.regionInfo.nmdesa) parts.push(`Desa ${activeBulkItem.regionInfo.nmdesa}`);
+        if (activeBulkItem.regionInfo.nmkec) parts.push(`Kecamatan ${activeBulkItem.regionInfo.nmkec}`);
+        return parts.join(', ');
+      }
+      return activeBulkItem.tagStr || activeBulkItem.locationInput || 'Wilayah Penugasan';
+    }
+
+    if (regionInfo) {
+      const parts = [];
+      if (regionInfo.nmsls) parts.push(regionInfo.nmsls);
+      if (regionInfo.nmdesa) parts.push(`Desa ${regionInfo.nmdesa}`);
+      if (regionInfo.nmkec) parts.push(`Kecamatan ${regionInfo.nmkec}`);
+      return parts.join(', ');
+    }
+    return config.tagStr || 'Wilayah Penugasan';
+  }, [appMode, activeBulkItem, regionInfo, config.tagStr]);
+
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col">
       {/* Hidden File Inputs */}
@@ -879,7 +977,7 @@ export default function App() {
               }`}
             >
               <ImageIcon className="w-3.5 h-3.5" />
-              <span>Satuan</span>
+              <span>Geostamp Satuan</span>
             </button>
             <button
               type="button"
@@ -891,12 +989,28 @@ export default function App() {
               }`}
             >
               <Images className="w-3.5 h-3.5" />
-              <span>Bulk Stamp</span>
+              <span>Geostamp Massal</span>
               {bulkItems.length > 0 && (
                 <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-emerald-500/20 text-emerald-300">
                   {bulkItems.length}
                 </span>
               )}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                prepareSingleStampedImage();
+                setPerjadinInitialSubMode(bulkItems.length > 0 && appMode === 'bulk' ? 'bulk' : 'single');
+                setAppMode('perjadin');
+              }}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer ${
+                appMode === 'perjadin'
+                  ? 'bg-emerald-600 text-white shadow-xs font-semibold'
+                  : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>Laporan Perjadin</span>
             </button>
           </div>
 
@@ -914,6 +1028,15 @@ export default function App() {
                 </button>
                 <button
                   type="button"
+                  onClick={handleOpenSinglePerjadin}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 transition cursor-pointer"
+                  title="Buat dokumen laporan perjalanan dinas resmi Word (.docx) & PDF"
+                >
+                  <FileText className="w-4 h-4 text-emerald-400" />
+                  <span className="hidden md:inline">Laporan Perjadin</span>
+                </button>
+                <button
+                  type="button"
                   onClick={handleDownloadSingleImage}
                   className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition cursor-pointer"
                 >
@@ -921,7 +1044,7 @@ export default function App() {
                   <span>Unduh Foto</span>
                 </button>
               </>
-            ) : (
+            ) : appMode === 'bulk' ? (
               <>
                 <button
                   type="button"
@@ -930,6 +1053,16 @@ export default function App() {
                 >
                   <Plus className="w-4 h-4 text-emerald-400" />
                   <span className="hidden sm:inline">Tambah Foto</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={bulkItems.length === 0 || zipProgress.active}
+                  onClick={handleOpenBulkPerjadin}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/40 disabled:opacity-40 transition cursor-pointer"
+                  title="Ekspor seluruh daftar foto menjadi laporan perjalanan dinas Word (.docx)"
+                >
+                  <FileText className="w-4 h-4 text-emerald-400" />
+                  <span className="hidden sm:inline">Ekspor Perjadin</span>
                 </button>
                 <button
                   type="button"
@@ -945,13 +1078,35 @@ export default function App() {
                   </span>
                 </button>
               </>
+            ) : (
+              /* When in Perjadin Tab, show quick return button */
+              <button
+                type="button"
+                onClick={() => setAppMode('single')}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-medium bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-800 transition cursor-pointer"
+              >
+                <ImageIcon className="w-4 h-4 text-emerald-400" />
+                <span>Kembali ke Geostamp</span>
+              </button>
             )}
           </div>
         </div>
       </header>
 
-      {/* Main Workspace */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      {/* Main Workspace (Conditional: Perjadin Workspace vs Geostamp Workspace) */}
+      {appMode === 'perjadin' ? (
+        <PerjadinWorkspace
+          activeSinglePhotoBlob={currentStampedBlob}
+          activeSinglePhotoDataUrl={currentStampedDataUrl}
+          singleDateStr={effectiveSingleDateStr}
+          singleTujuan={effectiveSingleTujuan}
+          bulkItems={bulkItems}
+          globalStampConfig={config}
+          initialSubMode={perjadinInitialSubMode}
+          onNavigateToStamp={(targetMode) => setAppMode(targetMode)}
+        />
+      ) : (
+        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* LEFT COLUMN */}
         <aside
           className={`${
@@ -1388,6 +1543,15 @@ export default function App() {
                     >
                       <Shuffle className="w-3.5 h-3.5 text-emerald-400" />
                       <span>Acak Semua Jam & Titik</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleOpenBulkPerjadin}
+                      title="Ekspor seluruh daftar foto ke laporan perjalanan dinas Word format BPS"
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 transition cursor-pointer font-medium"
+                    >
+                      <FileText className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Ekspor Perjadin (.docx)</span>
                     </button>
                   </div>
 
@@ -1867,41 +2031,68 @@ export default function App() {
               )}
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 justify-end">
               {appMode === 'bulk' && bulkItems.length > 0 ? (
                 <>
                   <button
                     type="button"
                     onClick={handleDownloadSingleImage}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-medium bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-800 transition cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-800 transition cursor-pointer"
                   >
                     <Download className="w-3.5 h-3.5 text-emerald-400" />
                     <span>Unduh Foto Ini</span>
                   </button>
                   <button
                     type="button"
+                    onClick={handleOpenSinglePerjadin}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 transition cursor-pointer"
+                  >
+                    <FileText className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Perjadin Foto Ini</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleOpenBulkPerjadin}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/40 transition cursor-pointer"
+                  >
+                    <FileText className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Ekspor Semua Perjadin</span>
+                  </button>
+                  <button
+                    type="button"
                     disabled={zipProgress.active}
                     onClick={handleDownloadBulkZip}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white shadow-sm transition cursor-pointer"
+                    className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white shadow-sm transition cursor-pointer"
                   >
                     <FolderArchive className="w-4 h-4" />
-                    <span>Unduh Semua ({bulkItems.length} Foto .ZIP)</span>
+                    <span>Unduh Semua (.ZIP)</span>
                   </button>
                 </>
               ) : (
-                <button
-                  type="button"
-                  onClick={handleDownloadSingleImage}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition cursor-pointer"
-                >
-                  <Download className="w-4 h-4" />
-                  <span>Unduh Foto (.JPG)</span>
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={handleOpenSinglePerjadin}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/40 shadow-sm transition cursor-pointer"
+                  >
+                    <FileText className="w-4 h-4 text-emerald-400" />
+                    <span>Buat Laporan Perjadin</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDownloadSingleImage}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition cursor-pointer"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>Unduh Foto (.JPG)</span>
+                  </button>
+                </>
               )}
             </div>
           </div>
         </section>
       </main>
+      )}
     </div>
   );
 }

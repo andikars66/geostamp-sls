@@ -10,6 +10,7 @@ Aplikasi web berbasis klien (*100% Client-Side Static Web App*) untuk memberikan
 Mendukung mode operasi:
 1. **Mode Satuan (Single Stamp):** Interaksi cepat untuk 1 foto dengan pratinjau instan (*live reactive*).
 2. **Mode Massal (Bulk Stamp):** Pemrosesan banyak foto sekaligus (10–100+ foto) dengan variasi tanggal, jam, dan lokasi per foto secara efisien melalui **Quick Data Matrix (tabel inline)** maupun **Upload File Excel/CSV** serta pencocokan teks wilayah cerdas (*smart text/fuzzy resolver*).
+3. **Pembuat Laporan Perjalanan Dinas (Perjadin Generator):** Konversi instan foto bertanda tangan spasial menjadi dokumen resmi Laporan Perjalanan Dinas format baku BPS (Microsoft Word `.docx` dan siap cetak A4/PDF) secara satuan maupun massal (*multi-page document*).
 
 ### Core Value Proposition
 - **0 Rupiah (Gratis):** Dihosting di static provider (GitHub Pages / Cloudflare Pages / Vercel), tanpa backend server runtime.
@@ -106,6 +107,61 @@ flowchart TD
 
 ---
 
+### 3.3. Pembuatan Laporan Perjalanan Dinas (Perjadin Generator)
+
+Fitur untuk mengonversi foto hasil geotagging menjadi dokumen resmi Laporan Perjalanan Dinas sesuai format baku BPS (Kabupaten Lombok Tengah) secara langsung tanpa perlu menyalin manual ke Microsoft Word.
+
+#### A. Format & Tata Letak Dokumen Baku
+- **Dimensi Kertas:** A4 (*210 × 297 mm*).
+- **Margin:** *Narrow* 1 cm (567 twips) pada seluruh sisi.
+- **Tipografi:** Times New Roman 12 pt, spasi proporsional (target tepat 1 halaman per perjalanan/laporan).
+- **Struktur Dokumen:**
+  1. **Judul:** `LAPORAN PERJALANAN DINAS` (Center, Bold).
+  2. **Header Sub-Tabel:**
+     - Kiri: `Perihal : Laporan Perjalanan Dinas [Perihal/Kegiatan]`
+     - Kanan: `Praya, [Tanggal Perjadin]` (Tanggal surat identik dengan tanggal pelaksanaan kegiatan/stamp).
+  3. **Tujuan Surat:**
+     ```text
+     Kepada Yang Terhormat:
+         Kepala BPS Kabupaten Lombok Tengah
+     di
+         Tempat
+     ```
+  4. **Kalimat Pembuka & Logika Surat Tugas (ST):**
+     - Jika Nomor dan Tanggal ST diisi:
+       `"Berdasarkan surat tugas nomor [No ST] tanggal [Tgl ST] bersama ini disampaikan laporan perjalanan dinas kegiatan [Nama Kegiatan] sebagai berikut:"`
+     - Jika Nomor/Tanggal ST dikosongkan (opsional):
+       `"Berdasarkan surat tugas sebelumnya bersama ini disampaikan laporan perjalanan dinas kegiatan [Nama Kegiatan] sebagai berikut:"`
+  5. **Tabel 7 Rincian Informasi:**
+     - 1. Nama: `[Nama Pelaksana]` (wajib, tersimpan di `localStorage`).
+     - 2. Jabatan: Pilihan dropdown {`Statistisi Ahli Pertama`, `Statistisi Ahli Muda`, `Statistisi Ahli Madya`, `Pranata Komputer Ahli Pertama`, `Pranata Komputer Ahli Muda`, `Pranata Komputer Ahli Madya`, `Staff`, `Lainnya (ketik bebas)`}.
+     - 3. Asal Satker: `BPS Kabupaten Lombok Tengah` (tersimpan di `localStorage`).
+     - 4. Tujuan perjalanan: Otomatis default dari wilayah/SLS terpilih pada photo stamp (misal `Desa Pandan Indah, Kecamatan Praya Barat Daya` atau `Dusun Jurit, Bebuaq, Kopang`), dapat diedit bebas oleh pengguna.
+     - 5. Hari, Tanggal: Otomatis mengikuti tanggal pada photo stamp dalam bahasa Indonesia formal (contoh: `Rabu, 29 Juli 2026`).
+     - 6. Uraian kegiatan perjalanan dinas: Dilengkapi preset narasi lapangan BPS siap pakai + editor teks bebas.
+     - 7. Dokumentasi: Gambar foto hasil stamp resolusi teroptimasi (lebar ±9.5 cm).
+  6. **Blok Tanda Tangan:** Sisi kanan bawah dengan format `Pelaksana perjalanan dinas` diikuti spasi tanda tangan dan `[Nama Pelaksana]`.
+
+#### B. Pilihan Template Uraian Kegiatan BPS
+1. **Pendataan Berhasil & Lengkap:** Responden kooperatif, kuesioner terisi lengkap sesuai SOP.
+2. **Pendataan Berhasil tapi Data Belum Lengkap:** Memerlukan konfirmasi lanjutan atau dokumen pendukung.
+3. **Pengawasan - Petugas Baik & Sesuai SOP:** Observasi PPL, probing berjalan baik, tahapan tertib SOP.
+4. **Pengawasan - Pembinaan Konsep / Kurang Paham SOP:** Ditemukan keraguan konsep, diberikan penjelasan dan pembinaan langsung.
+5. **Pengawasan - Koreksi Ketelitian / Inkonsistensi:** Ditemukan pertanyaan terlewat/inkonsisten, dilakukan perbaikan bersama.
+6. **Pengawasan - Tempo Wawancara Lambat / Optimalisasi Waktu:** Probing baik namun tempo lambat, evaluasi percepatan alur wawancara.
+7. **Kustom (Ketik Bebas):** Textarea bebas untuk narasi spesifik lainnya.
+
+#### C. Integrasi Alur Kerja (Single & Bulk)
+- **Mode Satuan:**
+  - Tombol `[ 📄 Buat Laporan Perjadin ]` membuka drawer/modal dengan *Live WYSIWYG A4 Preview*.
+  - Tombol aksi: `[ 📥 Unduh Dokumen Word (.docx) ]` dan `[ 🖨️ Cetak / Simpan PDF ]`.
+- **Mode Massal (Bulk Matrix):**
+  - Tombol `[ 📄 Ekspor Laporan Perjadin (.docx) ]` di header tabel bulk.
+  - Opsi 1: **Gabung 1 Dokumen Word (.docx)** (multi-halaman berurutan dengan Page Break per laporan, persis contoh laporan perjalanan dinas BPS).
+  - Opsi 2: **Dokumen Terpisah (.zip)** berisi file docx individual per foto.
+
+---
+
 ## 4. Technical Architecture
 
 ### 4.1. Tech Stack
@@ -115,11 +171,14 @@ flowchart TD
 - **Archive & File Parsing:**
   - `jszip` (Client-side zip archiving tanpa backend).
   - `xlsx` / CSV parser lokal ringan untuk membaca spreadsheet.
+- **Document Generation:**
+  - `docx` (Client-side Microsoft Word DOCX generator tanpa ketergantungan server).
 - **Data Optimization:** `hierarchy.json` (~50 KB) + `boundaries/[kdkec].json` (Lazy loaded).
 
 ---
 
 ## 5. Non-Functional Requirements
-1. **Zero Backend:** Seluruh logika pengolahan foto, parsing excel, dan zip packaging wajib berjalan di browser pengguna.
-2. **Memory Safety:** Membuka 50+ foto berukuran 12MP tidak boleh menyebabkan tab browser crash (wajib menggunakan thumbnail ringan di tabel dan melepaskan memori kanvas setelah dimasukkan ke zip).
-3. **Respon Cepat:** Pencocokan teks wilayah massal harus selesai dalam waktu < 200ms untuk 50 baris data.
+1. **Zero Backend:** Seluruh logika pengolahan foto, parsing excel, zip packaging, dan pembuatan dokumen Word (.docx) wajib berjalan 100% di browser pengguna.
+2. **Memory Safety:** Membuka 50+ foto berukuran 12MP tidak boleh menyebabkan tab browser crash (wajib menggunakan thumbnail ringan di tabel, melepaskan memori kanvas setelah dimasukkan ke zip/word, dan me-resize gambar dokumen ke lebar maks 1200 px).
+3. **Respon Cepat:** Pencocokan teks wilayah massal harus selesai dalam waktu < 200ms untuk 50 baris data; pembuatan dokumen `.docx` instan (< 100ms per halaman).
+4. **Format Fidelity:** Dokumen `.docx` hasil unduhan wajib membuka sempurna di Microsoft Word dan WPS Office tanpa peringatan berkas korup atau pergeseran margin.

@@ -59,17 +59,41 @@ File ini adalah pedoman operasional wajib bagi AI coding agent dalam mengimpleme
 
 ---
 
-## 4. Default State Requirements
+## 4. Laporan Perjalanan Dinas (Perjadin) Generator Invariants
+
+1. **Client-Side Only Document Generation:**
+   - DILARANG menggunakan backend server/API untuk generate Word/PDF.
+   - Pembuatan dokumen `.docx` WAJIB berjalan 100% di browser klien (menggunakan library `docx` JavaScript/TypeScript).
+2. **Standard Document Layout & Typography:**
+   - Format kertas: **A4** (*210 mm x 297 mm*).
+   - Margin: **1 cm (567 twips)** pada seluruh sisi (top, bottom, left, right).
+   - Tipografi: **Times New Roman**, ukuran **12 pt** (24 half-points).
+   - Target layout: Tepat 1 halaman per perjalanan/kegiatan.
+3. **Surat Tugas (ST) Fallback Rule:**
+   - Kolom Nomor Surat Tugas dan Tanggal Surat Tugas bersifat opsional.
+   - Jika diisi: gunakan teks `"Berdasarkan surat tugas nomor [No ST] tanggal [Tgl ST] bersama ini disampaikan laporan perjalanan dinas kegiatan [Nama Kegiatan] sebagai berikut:"`.
+   - Jika kosong: WAJIB otomatis memakai teks fallback: `"Berdasarkan surat tugas sebelumnya bersama ini disampaikan laporan perjalanan dinas kegiatan [Nama Kegiatan] sebagai berikut:"`.
+4. **Embedded Image Optimization:**
+   - Gambar foto hasil geostamp yang disematkan ke dalam file `.docx` harus di-resize ke resolusi proporsional (lebar ±9.5 cm / maks 1200 px, kualitas JPEG ~85%) untuk mencegah ukuran file Word membengkak secara berlebihan dan mencegah browser *out-of-memory*.
+5. **Local Profile Persistence:**
+   - Field profil pengguna (Nama, Jabatan, Asal Satker, No ST terakhir) WAJIB disimpan di `localStorage` peramban agar pengguna tidak perlu mengisi ulang identitas setiap kali menggunakan aplikasi.
+6. **Bulk Perjadin Generation:**
+   - Mendukung ekspor gabungan menjadi **1 Dokumen Word Bersama** (multi-halaman dengan page break per laporan) serta opsi unduh terpisah (ZIP docx).
+
+---
+
+## 5. Default State Requirements
 
 Saat aplikasi pertama kali dibuka (initial state), agent harus memastikan default value berikut terpenuhi:
 - **Tanggal:** Tanggal lokal perangkat hari ini (`new Date()`).
 - **Waktu:** Jam antara `09` s.d. `15` dengan menit dan detik acak (contoh: `09:14:38`, bukan `09:00:00`).
 - **Mode:** Mode Satuan sebagai default, dengan opsi beralih ke Mode Massal (Bulk Stamp).
 - **Watermark Template:** Model "GPS Map Camera Clean" (Tanggal/Jam di atas, Koordinat di tengah, ID SubSLS & Nama Wilayah di bawah).
+- **Perjadin Profile:** Diambil dari cache `localStorage` jika ada, dengan default Asal Satker `BPS Kabupaten Lombok Tengah`.
 
 ---
 
-## 5. Coding Standards & Conventions
+## 6. Coding Standards & Conventions
 
 - **Bahasa:** TypeScript / Modern JavaScript (ES2022+).
 - **Format State:** Reaktif murni (React hooks terisolasi).
@@ -77,12 +101,14 @@ Saat aplikasi pertama kali dibuka (initial state), agent harus memastikan defaul
   - Pastikan upload foto berukuran besar (> 10 MB) dan banyak file (puluhan foto) tidak menyebabkan browser freeze.
   - Pastikan parser Excel/CSV tahan terhadap baris kosong, header berbeda, atau penulisan tanggal/nama lokasi yang bervariasi.
   - Pastikan unduhan mode bulk menghasilkan file `.zip` valid yang dapat diekstrak tanpa file korup.
+  - Pastikan file `.docx` hasil unduhan dapat dibuka dengan sempurna di Microsoft Word dan WPS Office tanpa warning korup atau pergeseran margin.
 
 ---
 
-## 6. Prohibited Actions (Hal-Hal yang Dilarang)
+## 7. Prohibited Actions (Hal-Hal yang Dilarang)
 
 - JANGAN menambahkan server-side code atau backend process.
 - JANGAN memuat raw `peta_sls_20260202.geojson` 23 MB langsung ke bundle browser.
 - JANGAN menyimpan puluhan `ImageBitmap` foto resolusi asli sekaligus di memori state aplikasi.
 - JANGAN menyertakan API Key berbayar.
+- JANGAN menggunakan library konverter dokumen yang membutuhkan Node.js server runtime atau headless browser backend.
