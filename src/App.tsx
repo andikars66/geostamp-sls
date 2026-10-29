@@ -367,9 +367,14 @@ export default function App() {
     const previewH = Math.round(sourceImg.height * scale);
 
     if (appMode === 'bulk' && activeBulkItem) {
+      const itemDay =
+        activeBulkItem.dayStr?.trim() ||
+        getIndonesianDayName(activeBulkItem.dateStr) ||
+        '';
       const bulkPreviewConfig: StampConfig = {
         ...config,
         dateStr: activeBulkItem.dateStr,
+        dayStr: itemDay,
         timeStr: activeBulkItem.timeStr,
         coordStr: activeBulkItem.coordStr,
         tagStr: activeBulkItem.tagStr,
@@ -448,6 +453,7 @@ export default function App() {
       const file = files[i];
       try {
         const { thumbUrl, width, height } = await createThumbnailFromFile(file);
+        const itemDate = workdayDates[i] || getTodayDateString();
         const draft: BulkPhotoItem = {
           id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
           file,
@@ -455,7 +461,8 @@ export default function App() {
           thumbUrl,
           width,
           height,
-          dateStr: workdayDates[i] || getTodayDateString(),
+          dateStr: itemDate,
+          dayStr: getIndonesianDayName(itemDate),
           timeStr: getRandomWorkingTime(),
           locationInput: defaultLoc,
           matchStatus: 'empty',
@@ -619,8 +626,13 @@ export default function App() {
     const sourceRow = activeBulkItem || bulkItems[0];
 
     if (field === 'date') {
+      const sourceDay = sourceRow.dayStr || getIndonesianDayName(sourceRow.dateStr);
       setBulkItems((prev) =>
-        prev.map((item) => ({ ...item, dateStr: sourceRow.dateStr }))
+        prev.map((item) => ({
+          ...item,
+          dateStr: sourceRow.dateStr,
+          dayStr: sourceDay,
+        }))
       );
     } else if (field === 'location') {
       const updated: BulkPhotoItem[] = [];
@@ -672,9 +684,11 @@ export default function App() {
           continue;
         }
 
+        const rowDate = matchedRow.tanggal || item.dateStr || getTodayDateString();
         const nextDraft: BulkPhotoItem = {
           ...item,
-          dateStr: matchedRow.tanggal || item.dateStr || getTodayDateString(),
+          dateStr: rowDate,
+          dayStr: getIndonesianDayName(rowDate),
           timeStr: matchedRow.jam || item.timeStr || getRandomWorkingTime(),
           locationInput:
             matchedRow.lokasi !== undefined && matchedRow.lokasi !== ''
@@ -774,9 +788,14 @@ export default function App() {
     exportCanvas.height = sourceImg.height;
 
     if (appMode === 'bulk' && activeBulkItem) {
+      const itemDay =
+        activeBulkItem.dayStr?.trim() ||
+        getIndonesianDayName(activeBulkItem.dateStr) ||
+        '';
       const bulkExportConfig: StampConfig = {
         ...config,
         dateStr: activeBulkItem.dateStr,
+        dayStr: itemDay,
         timeStr: activeBulkItem.timeStr,
         coordStr: activeBulkItem.coordStr,
         tagStr: activeBulkItem.tagStr,
@@ -839,9 +858,14 @@ export default function App() {
     exportCanvas.height = sourceImg.height;
 
     if (appMode === 'bulk' && activeBulkItem) {
+      const itemDay =
+        activeBulkItem.dayStr?.trim() ||
+        getIndonesianDayName(activeBulkItem.dateStr) ||
+        '';
       const bulkExportConfig: StampConfig = {
         ...config,
         dateStr: activeBulkItem.dateStr,
+        dayStr: itemDay,
         timeStr: activeBulkItem.timeStr,
         coordStr: activeBulkItem.coordStr,
         tagStr: activeBulkItem.tagStr,
@@ -1681,21 +1705,46 @@ export default function App() {
                               </div>
                             </td>
 
-                            {/* Inline Date Input with Day Name pill */}
+                            {/* Inline Date Input with Day Name pill & Calendar picker */}
                             <td className="py-2.5 px-2 w-36">
                               <div className="space-y-1">
-                                <input
-                                  type="text"
-                                  value={item.dateStr}
-                                  onChange={(e) =>
-                                    handleUpdateBulkRow(item.id, { dateStr: e.target.value })
-                                  }
-                                  placeholder="2026-10-28"
-                                  className="w-full px-2.5 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-xs font-mono text-zinc-100 focus:outline-none focus:border-emerald-500/70"
-                                />
-                                {getIndonesianDayName(item.dateStr) && (
+                                <div className="relative flex items-center">
+                                  <input
+                                    type="text"
+                                    value={item.dateStr}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      const autoDay = getIndonesianDayName(val);
+                                      handleUpdateBulkRow(item.id, {
+                                        dateStr: val,
+                                        dayStr: autoDay,
+                                      });
+                                    }}
+                                    placeholder="2026-10-28"
+                                    className="w-full pl-2.5 pr-7 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-xs font-mono text-zinc-100 focus:outline-none focus:border-emerald-500/70"
+                                  />
+                                  <input
+                                    type="date"
+                                    tabIndex={-1}
+                                    value={toIsoDateValue(item.dateStr)}
+                                    onChange={(e) => {
+                                      if (e.target.value) {
+                                        const val = e.target.value;
+                                        const autoDay = getIndonesianDayName(val);
+                                        handleUpdateBulkRow(item.id, {
+                                          dateStr: val,
+                                          dayStr: autoDay,
+                                        });
+                                      }
+                                    }}
+                                    className="absolute right-1.5 w-4 h-4 opacity-0 cursor-pointer"
+                                    title="Pilih dari Kalender"
+                                  />
+                                  <Calendar className="w-3.5 h-3.5 text-zinc-500 hover:text-emerald-400 pointer-events-none absolute right-2" />
+                                </div>
+                                {(item.dayStr || getIndonesianDayName(item.dateStr)) && (
                                   <div className="text-[10px] text-emerald-400 font-medium px-0.5">
-                                    {getIndonesianDayName(item.dateStr)}
+                                    {item.dayStr || getIndonesianDayName(item.dateStr)}
                                   </div>
                                 )}
                               </div>

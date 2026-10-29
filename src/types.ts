@@ -121,6 +121,7 @@ export interface BulkPhotoItem {
   width: number;
   height: number;
   dateStr: string;
+  dayStr?: string;
   timeStr: string;
   locationInput: string;
   matchStatus: LocationMatchStatus;

@@ -1,5 +1,6 @@
 import type { BulkPhotoItem, HierarchyPayload, StampConfig } from './types';
 import {
+  getIndonesianDayName,
   getRandomWorkingTime,
   getTodayDateString,
   resolveSmartLocationText,
@@ -282,9 +283,15 @@ export async function exportBulkPhotosToZip(
     offscreen.width = bitmap.width;
     offscreen.height = bitmap.height;
 
+    const itemDay =
+      item.dayStr?.trim() ||
+      getIndonesianDayName(item.dateStr) ||
+      '';
+
     const itemStampConfig: StampConfig = {
       ...globalStyleConfig,
       dateStr: item.dateStr,
+      dayStr: itemDay,
       timeStr: item.timeStr,
       coordStr: item.coordStr,
       tagStr: item.tagStr,

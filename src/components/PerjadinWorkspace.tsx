@@ -32,6 +32,7 @@ import {
 import { PerjadinA4Preview } from './PerjadinA4Preview';
 import { PerjadinSheetView } from './PerjadinSheetView';
 import { renderStampedCanvas } from '../canvasStamper';
+import { getIndonesianDayName } from '../spatial';
 
 interface PerjadinWorkspaceProps {
   activeSinglePhotoBlob: Blob | null;
@@ -236,9 +237,15 @@ export const PerjadinWorkspace: React.FC<PerjadinWorkspaceProps> = ({
     offscreen.width = tw;
     offscreen.height = th;
 
+    const itemDay =
+      item.dayStr?.trim() ||
+      getIndonesianDayName(item.dateStr) ||
+      '';
+
     const itemStampConfig: StampConfig = {
       ...globalStampConfig,
       dateStr: item.dateStr,
+      dayStr: itemDay,
       timeStr: item.timeStr,
       coordStr: item.coordStr,
       tagStr: item.tagStr,
@@ -326,9 +333,15 @@ export const PerjadinWorkspace: React.FC<PerjadinWorkspaceProps> = ({
     offscreen.width = bitmap.width;
     offscreen.height = bitmap.height;
 
+    const itemDay =
+      item.dayStr?.trim() ||
+      getIndonesianDayName(item.dateStr) ||
+      '';
+
     const itemStampConfig: StampConfig = {
       ...globalStampConfig,
       dateStr: item.dateStr,
+      dayStr: itemDay,
       timeStr: item.timeStr,
       coordStr: item.coordStr,
       tagStr: item.tagStr,
