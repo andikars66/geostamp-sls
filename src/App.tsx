@@ -1,3 +1,7 @@
+import { useNotice } from './useNotice';
+import { assignPhotos } from './photoAssignment';
+import { createSpreadsheetDrafts } from './bulkUtils';
+import { buildLocationOptions } from './locationSearch';
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import {
   Upload,
@@ -66,14 +70,15 @@ interface SearchIndexEntry {
 
 export default function App() {
   // Mode Toggle: 'single' (Default per AGENTS.md) | 'bulk' | 'perjadin'
-  const [appMode, setAppMode] = useState<'single' | 'bulk' | 'perjadin'>('single');
+  const [appMode, setAppMode] = useState<'single' | 'bulk' | 'perjadin'>('perjadin');
   const [perjadinInitialSubMode, setPerjadinInitialSubMode] = useState<'single' | 'bulk'>('single');
 
   // 1. Spatial Hierarchy Data State
   const [hierarchy, setHierarchy] = useState<HierarchyPayload | null>(null);
   const [loadingHierarchy, setLoadingHierarchy] = useState<boolean>(true);
   const [loadingBoundary, setLoadingBoundary] = useState<boolean>(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const {message:errorMsg,setMessage:notifyError,restart:restartError}=useNotice();
+  const setErrorMsg=useCallback((text:string|null)=>notifyError(text,'error'),[notifyError]);
 
   // 2. Single Mode: Hierarchical Filter State (Kecamatan -> Desa -> SLS -> SubSLS)
   const [selectedKdkec, setSelectedKdkec] = useState<string>('');
@@ -201,6 +206,8 @@ export default function App() {
     return list;
   }, [hierarchy]);
 
+  const reportLocationOptions = useMemo(() => buildLocationOptions(hierarchy), [hierarchy]);
+
   // Filtered quick search results (Single Mode)
   const filteredSearchResults = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -242,7 +249,7 @@ export default function App() {
 
   // Decode ONLY the single currently selected bulk item for Live Preview (Memory Safety Rule 3.2)
   useEffect(() => {
-    if (appMode !== 'bulk' || !activeBulkItem) {
+    if (appMode !== 'bulk' || !activeBulkItem || activeBulkItem.photoMissing) {
       setActiveBulkBitmap((prev) => {
         if (prev) prev.close();
         return null;
@@ -431,7 +438,7 @@ export default function App() {
   };
 
   // Handle Adding Multiple Photos to Bulk Queue
-  const handleAddBulkFiles = async (fileList: FileList | File[]) => {
+  const handleAddBulkFiles = async (fileList: FileList | File[], stampEnabled = true, previewId?: string) => {
     const files = Array.from(fileList).filter((f) => f.type.startsWith('image/'));
     if (files.length === 0) {
       setErrorMsg('Tidak ada file gambar valid yang dipilih.');
@@ -454,11 +461,12 @@ export default function App() {
       const file = files[i];
       try {
         const { thumbUrl, width, height } = await createThumbnailFromFile(file);
-        const itemDate = workdayDates[i] || getTodayDateString();
+        const itemDate = getTodayDateString();
         const draft: BulkPhotoItem = {
           id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
           file,
           fileName: file.name,
+          stampEnabled,
           thumbUrl,
           width,
           height,
@@ -483,7 +491,9 @@ export default function App() {
 
     if (newItems.length > 0) {
       setBulkItems((prev) => {
-        const updated = [...prev, ...newItems];
+        const assignment = assignPhotos(prev, newItems, previewId || prev[0]?.id);
+        assignment.replacedUrls.forEach(url => URL.revokeObjectURL(url));
+        const updated = assignment.items;
         if (!activeBulkId && updated.length > 0) {
           setActiveBulkId(updated[0].id);
         }
@@ -587,7 +597,7 @@ export default function App() {
     reResolveLocation = false
   ) => {
     setBulkItems((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, ...patch } : item))
+      prev.map((item) => (item.id === id ? { ...item, ...patch, ...(reResolveLocation ? { regionInfo: null, activeFeature: null, coordStr: '', tagStr: '', resolvedTarget: null, matchStatus: 'empty' as const } : {}) } : item))
     );
 
     if (reResolveLocation) {
@@ -596,7 +606,7 @@ export default function App() {
       const merged = { ...targetItem, ...patch };
       const resolved = await resolveAndSampleBulkItem(merged, hierarchy);
       setBulkItems((prev) =>
-        prev.map((item) => (item.id === id ? resolved : item))
+        prev.map((item) => (item.id === id && item.locationInput === merged.locationInput ? { ...item, regionInfo: resolved.regionInfo, activeFeature: resolved.activeFeature, coordStr: resolved.coordStr, tagStr: resolved.tagStr, resolvedTarget: resolved.resolvedTarget, matchStatus: resolved.matchStatus } : item))
       );
     }
   };
@@ -657,8 +667,9 @@ export default function App() {
       }
 
       if (bulkItems.length === 0) {
-        setErrorMsg('Unggah foto-foto Anda terlebih dahulu di Geostamp Massal, lalu impor file Excel/CSV.');
-        return false;
+        const drafts = await createSpreadsheetDrafts(rows, hierarchy);
+        setBulkItems(drafts);
+        return true;
       }
 
       const updated = await applyParsedRowsToBulkItems(rows, bulkItems, hierarchy);
@@ -941,149 +952,22 @@ export default function App() {
         className="hidden"
       />
 
-      {/* Minimalist Clean Header with Mode Switcher */}
-      <header className="border-b border-zinc-900 bg-zinc-950/80 backdrop-blur-md sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-center text-emerald-400">
-              <Compass className="w-5 h-5" />
-            </div>
-            <span className="text-base font-semibold tracking-tight text-zinc-100">
-              GeoStamp SLS
-            </span>
-          </div>
-
-          {/* Mode Toggle Pill (Single vs Bulk Stamp) */}
-          <div className="flex items-center p-1 rounded-xl bg-zinc-900 border border-zinc-800">
-            <button
-              type="button"
-              onClick={() => setAppMode('single')}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer ${
-                appMode === 'single'
-                  ? 'bg-zinc-800 text-emerald-400 shadow-xs'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              <ImageIcon className="w-3.5 h-3.5" />
-              <span>Geostamp Satuan</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setAppMode('bulk')}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer ${
-                appMode === 'bulk'
-                  ? 'bg-zinc-800 text-emerald-400 shadow-xs'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              <Images className="w-3.5 h-3.5" />
-              <span>Geostamp Massal</span>
-              {bulkItems.length > 0 && (
-                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-emerald-500/20 text-emerald-300">
-                  {bulkItems.length}
-                </span>
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                prepareSingleStampedImage();
-                setPerjadinInitialSubMode(bulkItems.length > 0 && appMode === 'bulk' ? 'bulk' : 'single');
-                setAppMode('perjadin');
-              }}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer ${
-                appMode === 'perjadin'
-                  ? 'bg-emerald-600 text-white shadow-xs font-semibold'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              <FileText className="w-3.5 h-3.5" />
-              <span>Laporan Perjadin</span>
-            </button>
-          </div>
-
-          {/* Right Header Actions */}
-          <div className="flex items-center gap-2">
-            {appMode === 'single' ? (
-              <>
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-medium bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-800 transition cursor-pointer"
-                >
-                  <Upload className="w-4 h-4 text-emerald-400" />
-                  <span className="hidden sm:inline">Pilih Foto</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={handleOpenSinglePerjadin}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 transition cursor-pointer"
-                  title="Buat dokumen laporan perjalanan dinas resmi Word (.docx) & PDF"
-                >
-                  <FileText className="w-4 h-4 text-emerald-400" />
-                  <span className="hidden md:inline">Laporan Perjadin</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={handleDownloadSingleImage}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition cursor-pointer"
-                >
-                  <Download className="w-4 h-4" />
-                  <span>Unduh Foto</span>
-                </button>
-              </>
-            ) : appMode === 'bulk' ? (
-              <>
-                <button
-                  type="button"
-                  onClick={() => bulkFilesInputRef.current?.click()}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-medium bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-800 transition cursor-pointer"
-                >
-                  <Plus className="w-4 h-4 text-emerald-400" />
-                  <span className="hidden sm:inline">Tambah Foto</span>
-                </button>
-                <button
-                  type="button"
-                  disabled={bulkItems.length === 0 || zipProgress.active}
-                  onClick={handleOpenBulkPerjadin}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/40 disabled:opacity-40 transition cursor-pointer"
-                  title="Ekspor seluruh daftar foto menjadi laporan perjalanan dinas Word (.docx)"
-                >
-                  <FileText className="w-4 h-4 text-emerald-400" />
-                  <span className="hidden sm:inline">Ekspor Perjadin</span>
-                </button>
-                <button
-                  type="button"
-                  disabled={bulkItems.length === 0 || zipProgress.active}
-                  onClick={handleDownloadBulkZip}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white shadow-sm transition cursor-pointer"
-                >
-                  <FolderArchive className="w-4 h-4" />
-                  <span>
-                    {zipProgress.active
-                      ? `Memproses ${zipProgress.current}/${zipProgress.total}...`
-                      : `Unduh Semua (.ZIP)`}
-                  </span>
-                </button>
-              </>
-            ) : (
-              /* When in Perjadin Tab, show quick return button */
-              <button
-                type="button"
-                onClick={() => setAppMode('single')}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-medium bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-800 transition cursor-pointer"
-              >
-                <ImageIcon className="w-4 h-4 text-emerald-400" />
-                <span>Kembali ke Geostamp</span>
-              </button>
-            )}
-          </div>
-        </div>
-      </header>
-
       {/* Main Workspace (Conditional: Perjadin Workspace vs Geostamp Workspace) */}
       {appMode === 'perjadin' ? (
         <PerjadinWorkspace
+          onReplacePhoto={async (id, file) => {
+            const thumbnail = await createThumbnailFromFile(file);
+            const previous = bulkItems.find(item => item.id === id);
+            setBulkItems(items => items.map(item => item.id === id ? { ...item, file, fileName: file.name, ...thumbnail, photoMissing: false } : item));
+            if (previous) URL.revokeObjectURL(previous.thumbUrl);
+          }}
+          locationOptions={reportLocationOptions}
+          onRemovePhotos={(ids) => {
+            bulkItems.filter(item => ids.includes(item.id)).forEach(item => URL.revokeObjectURL(item.thumbUrl));
+            setBulkItems(prev => prev.filter(item => !ids.includes(item.id)));
+            if (activeBulkId && ids.includes(activeBulkId)) setActiveBulkId(null);
+          }}
+          onAddPhotos={handleAddBulkFiles}
           activeSinglePhotoBlob={currentStampedBlob}
           activeSinglePhotoDataUrl={currentStampedDataUrl}
           singleDateStr={effectiveSingleDateStr}
@@ -1107,7 +991,7 @@ export default function App() {
           } flex flex-col gap-5`}
         >
           {errorMsg && (
-            <div className="p-3.5 rounded-xl bg-rose-950/50 border border-rose-500/30 text-rose-200 text-xs flex items-center justify-between">
+            <div onClick={restartError} role="alert" className="p-3.5 rounded-xl bg-rose-950/50 border border-rose-500/30 text-rose-200 text-xs flex items-center justify-between">
               <span>{errorMsg}</span>
               <button
                 type="button"

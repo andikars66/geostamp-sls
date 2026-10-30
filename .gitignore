@@ -30,3 +30,7 @@ Laporan Perjadin/
 
 # Raw big source geospatial data (not needed in git repository, already processed into public/data)
 peta_sls_20260202.geojson
+
+# Local review / taste skill cache
+.taste-skill/
+

@@ -527,6 +527,11 @@ export async function resolveAndSampleBulkItem(
   keepExistingCoords = false
 ): Promise<BulkPhotoItem> {
   const target = resolveSmartLocationText(item.locationInput, hierarchy);
+  // Report-only photos need a named destination, not random coordinates or boundary I/O.
+  if (item.stampEnabled === false) {
+    return { ...item, resolvedTarget: target, matchStatus: target.status,
+      regionInfo: null, activeFeature: null, coordStr: '', tagStr: '' };
+  }
 
   if (target.status === 'empty' || target.status === 'unmatched') {
     return {
@@ -657,4 +662,21 @@ export async function exportBulkPhotosToZip(
   link.click();
   document.body.removeChild(link);
   setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
+
+/** Create editable visits before documentation files are available. */
+export async function createSpreadsheetDrafts(rows:ParsedSpreadsheetRow[], hierarchy:HierarchyPayload|null):Promise<BulkPhotoItem[]> {
+ const drafts:BulkPhotoItem[]=[];
+ for(let i=0;i<rows.length;i++){
+  const row=rows[i];const date=row.tanggal||getTodayDateString();
+  const draft:BulkPhotoItem={id:crypto.randomUUID(),photoMissing:true,expectedFileName:row.nama_foto,
+   file:new File([],row.nama_foto||'photo-pending'),fileName:row.nama_foto||`Kunjungan ${i+1}`,thumbUrl:'',width:0,height:0,
+   dateStr:date,dayStr:getIndonesianDayName(date),timeStr:row.jam||getRandomWorkingTime(),locationInput:row.lokasi||'',
+   matchStatus:'empty',resolvedTarget:null,regionInfo:null,activeFeature:null,coordStr:row.koordinat||'',tagStr:'',customNote:row.catatan||'',
+   uraianKegiatan:row.uraian,tujuanPerjadin:row.tujuan,namaKegiatanPerjadin:row.nama_kegiatan,nomorSTPerjadin:row.nomor_st,
+   tanggalSTPerjadin:row.tanggal_st,namaPelaksanaPerjadin:row.nama_pelaksana,jabatanPelaksanaPerjadin:row.jabatan};
+  drafts.push(await resolveAndSampleBulkItem(draft,hierarchy,!!row.koordinat));
+ }
+ return drafts;
 }

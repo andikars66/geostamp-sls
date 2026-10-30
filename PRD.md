@@ -1,184 +1,128 @@
-# Product Requirements Document (PRD)
-## Web Photo Stamping & SLS Geotagging Tool (Client-Side)
+# PRD — Laper (Laporan Perjadin)
 
----
+Status: spesifikasi produk aktif · Diperbarui: 30 Oktober 2026.
 
-## 1. Executive Summary & Objective
+## 1. Objektif dan pengguna
 
-Aplikasi web berbasis klien (*100% Client-Side Static Web App*) untuk memberikan overlay stempel foto (timestamp dan geotagging koordinat presisi) secara otomatis dan reaktif pada foto yang diunggah. Koordinat yang dihasilkan diacak secara valid (*point-in-polygon*) di dalam batas wilayah Satuan Lingkungan Setempat (SLS / SubSLS) berdasarkan data spasial resmi (`peta_sls_20260202.geojson`).
+Laper membantu pengguna menyelesaikan banyak laporan perjalanan dinas dari foto dokumentasi atau data Excel/CSV dalam satu workspace. Pengguna terutama bekerja melalui laptop/PC dan sesekali HP; bahan awal umumnya foto saja. Seluruh pengolahan berjalan lokal di browser.
 
-Mendukung mode operasi:
-1. **Mode Satuan (Single Stamp):** Interaksi cepat untuk 1 foto dengan pratinjau instan (*live reactive*).
-2. **Mode Massal (Bulk Stamp):** Pemrosesan banyak foto sekaligus (10–100+ foto) dengan variasi tanggal, jam, dan lokasi per foto secara efisien melalui **Quick Data Matrix (tabel inline)** maupun **Upload File Excel/CSV** serta pencocokan teks wilayah cerdas (*smart text/fuzzy resolver*).
-3. **Pembuat Laporan Perjalanan Dinas (Perjadin Generator):** Konversi instan foto bertanda tangan spasial menjadi dokumen resmi Laporan Perjalanan Dinas format baku BPS (Microsoft Word `.docx` dan siap cetak A4/PDF) secara satuan maupun massal (*multi-page document*).
+**Unit kerja: 1 laporan = 1 kunjungan = 1 hari = 1 foto dokumentasi.** Dua foto dengan tanggal sama tetap dua kunjungan. Sebuah laporan boleh memiliki beberapa halaman A4 bila kontennya panjang. Draf dari Excel boleh belum memiliki foto, tetapi belum siap diekspor atau dicetak.
 
-### Core Value Proposition
-- **0 Rupiah (Gratis):** Dihosting di static provider (GitHub Pages / Cloudflare Pages / Vercel), tanpa backend server runtime.
-- **Instan & Zero Latency:** Tidak ada tombol "Generate" atau "Submit" untuk pratinjau. Perubahan parameter langsung memicu re-render canvas secara seketika.
-- **100% Privacy-Preserving:** Foto pengguna tidak pernah diunggah ke server; seluruh kompresi, rendering kanvas, dan pembentukan arsip ZIP berjalan lokal di browser.
-- **Human-Centric & Lapangan-Ready:** Pengguna tidak dipaksa menghafal kode 16 digit ID SubSLS; sistem dapat mengenali teks nama dusun/desa/kecamatan secara cerdas.
-- **Clean UI & Functional:** Desain modern, fungsional, responsif di HP/desktop, bebas *AI-slop*.
+Identitas produk: **Laper — Laporan Perjadin**, favicon dokumen hitam-putih. Halaman awal langsung workspace Laporan Perjadin, tanpa navbar/header merek maupun pilihan Geostamp Satuan/Massal.
 
----
+## 2. Batas produk dan acuan
 
-## 2. Source Data Specifications
+- Aplikasi statis client-side: React 19, TypeScript, Vite, Tailwind CSS 4, lucide-react; docx, JSZip, XLSX dan Turf untuk pengolahan lokal.
+- Foto, spreadsheet, stamping, pencarian wilayah, pembuatan Word/ZIP, dan persiapan cetak tidak dikirim ke backend. Tidak memerlukan API key berbayar.
+- [DESIGN.md](DESIGN.md) mengatur desain dan interaksi; [AGENTS.md](AGENTS.md) mengatur pelaksanaan teknis serta verifikasi.
+- Rencana di `docs/redesign-uiux-plan.md` adalah riwayat audit, bukan spesifikasi yang mengalahkan tiga dokumen aktif ini.
+- Kode alat stamping lama bukan destinasi produk saat ini. Ekspor JPEG mandiri bukan alasan untuk mengembalikan navbar Geostamp.
 
-Sumber data wilayah: [`peta_sls_20260202.geojson`](file:///e:/@ANDIKA/2026/1.%20Peta%20Digital/Peta/Batas%20SLS%202026/peta_sls_20260202.geojson)
+## 3. Alur utama
 
-| Atribut | Nilai / Spesifikasi |
-| :--- | :--- |
-| **Total Fitur** | 4.630 poligon SubSLS |
-| **Cakupan Wilayah** | 12 Kecamatan, 169 Desa, 2.702 SLS, 4.630 SubSLS (Kab. Lombok Tengah, NTB) |
-| **Sistem Koordinat (CRS)** | WGS84 (`EPSG:4326`) |
-| **Format Geometri** | `MultiPolygon` (100% validitas topologi GEOS/Shapely) |
-| **Kolom Utama** | `kdkec`, `nmkec`, `iddesa`, `nmdesa`, `idsls`, `nmsls`, `kdsubsls`, `idsubsls` |
+1. Pengguna membuka workspace; profil tersimpan digunakan bila tersedia.
+2. Pengguna memilih atau menyeret gambar maupun Excel/CSV pada area kosong Daftar Kunjungan. Jenis file dikenali otomatis.
+3. Gambar membentuk atau melengkapi kunjungan. Spreadsheet dapat membentuk draf terlebih dahulu tanpa foto.
+4. Pengguna mengisi profil/kegiatan/ST bersama dan melengkapi metadata per kunjungan pada panel Detail.
+5. Tab Foto dan Laporan A4 memperlihatkan hasil reaktif; tidak ada Generate/Terapkan untuk menyegarkan preview.
+6. Pengguna memilih kunjungan bila perlu, lalu membuka Ekspor & cetak untuk Word gabungan, ZIP Word terpisah, atau cetak pilihan.
 
----
+## 4. Workspace dan daftar kunjungan
 
-## 3. Core Features & User Journey
+Urutan layar: judul dan deskripsi singkat, ringkasan pegawai/kegiatan/ST, notifikasi/progres bila ada, toolbar, toolbar seleksi bila ada, daftar serta panel detail/preview.
 
-### 3.1. Mode Satuan (Single Photo Mode)
-1. **Upload / Seret Foto:** Pengguna mengklik atau menyeret foto langsung ke viewport Live Preview.
-2. **Pengaturan Waktu Fleksibel:** Tanggal dan jam dapat diketik bebas maupun dipilih visual dari kalender / clock picker. Default jam antara 09:00 s.d. 15:59 dengan menit/detik acak natural.
-3. **Pemilihan Wilayah & Geotagging:**
-   - Dropdown berjenjang (Kecamatan → Desa → SLS → SubSLS) atau pencarian cepat autocomplete.
-   - Sampling koordinat acak (*Point-in-Polygon*) presisi 6 desimal dengan tombol acak ulang titik (Shuffle 🔀).
-   - Koordinat dapat diedit/diketik manual jika diperlukan.
-4. **Stamping Kanvas Bersih:** Teks stempel langsung menampilkan `[idsubsls] • [NAMA SLS], [NAMA DESA], [NAMA KEC]` tanpa imbuhan kata "Desa" atau "Kecamatan".
-5. **Unduh Instan:** Menghasilkan file JPEG resolusi penuh asli.
+Toolbar hanya **Tambah foto**, **Impor & template**, **Ekspor & cetak**, berdekatan. Tidak ada kolom pencarian kunjungan atau checkbox Perlu dilengkapi. Semua kunjungan tampil. Menu impor/ekspor mengambang di atas konten tanpa menggeser layout.
 
----
+Daftar memuat thumbnail, nama file, nama preset uraian atau Uraian kustom/Uraian belum diisi, hari, tanggal, jam WITA (atau Foto asli), lokasi dan kelengkapan. Total berasal dari data, bukan angka terpisah.
 
-### 3.2. Mode Massal (Bulk Stamp Mode)
+- Klik baris atau Enter/Space membuka detail/preview. Checkbox hanya mengatur seleksi.
+- **Hanya thumbnail kecil** membuka pemilih foto untuk baris itu. Thumbnail kosong bertuliskan **Klik untuk menambah foto**. Nama file dan narasi tetap membuka detail.
+- Hover abu muda berlaku pada seluruh baris; baris aktif dibedakan dengan aksen biru.
+- Hapus kunjungan ada rata kanan pada header panel detail. Hapus N terpilih ada pada toolbar seleksi; kolom Kelengkapan tidak memiliki tombol Hapus.
+- Di HP, daftar dan detail bergantian. Status lengkap/perlu dilengkapi tetap terlihat di dalam baris saat kolom status disembunyikan.
 
-Fitur untuk memproses puluhan foto lapangan yang memiliki variasi hari, jam, dan lokasi berbeda-beda dengan alur kerja yang sangat cepat.
+## 5. Impor, draf, dan pemasangan foto
 
-```mermaid
-flowchart TD
-    A[Upload Banyak Foto / Folder] --> B[Daftar Foto Muncul di Quick Data Matrix]
-    B --> C{Pilih Cara Input Parameter}
-    C -->|Cara 1: Upload Excel/CSV| D[Sistem Parse & Match Nama/Urutan File]
-    C -->|Cara 2: Edit Cepat di Tabel| E[Ketik Tanggal & Nama Lokasi di Quick Table]
-    D --> F[Smart Text / Fuzzy Location Resolver Cocokkan ke SLS Terdekat]
-    E --> F
-    F --> G[Verifikasi Status: Hijau/Kuning/Merah & Pratinjau Foto Aktif]
-    G --> H[Klik 'Unduh Semua (.ZIP)']
-    H --> I[Sequential Background Worker Render Kanvas & Masukkan ke ZIP]
-```
+Format input: gambar yang didukung browser (utama JPG, PNG, WebP), XLSX, XLS, CSV. Area kosong menerima pilih file serta drag-and-drop. Satu proses gabungan menerima satu spreadsheet dan beberapa gambar: metadata diproses dahulu, lalu foto dipasangkan. Beberapa spreadsheet sekaligus ditolak dengan pesan jelas.
 
-#### A. Quick Data Matrix (Tabel Inline Cepat)
-- Menampilkan daftar semua foto yang diunggah dalam tabel ringkas:
-  - **No & Thumbnail Mini (60x60 px):** Ringan di memori RAM browser.
-  - **Nama File Asli.**
-  - **Tanggal:** Input tanggal yang bisa diketik bebas atau dipilih via mini datepicker.
-  - **Jam:** Jam acak default (dapat diketik manual per baris).
-  - **Input Lokasi (Smart Autocomplete & Free Text):** Pengguna dapat mengetik nama dusun/desa (misal `"Jurit"`, `"Bebuaq"`) atau kode ID SLS/SubSLS.
-  - **Status & Feedback Visual:**
-    - 🟢 *Hijau:* Cocok akurat ke SubSLS/SLS tertentu.
-    - 🟡 *Kuning:* Cocok parsial (tingkat desa/kecamatan, koordinat diacak di dalam batas desa/kecamatan).
-    - 🔴 *Merah:* Wilayah tidak ditemukan (pengguna dapat memilih dari daftar).
-- Mengklik salah satu baris di tabel langsung menampilkan foto tersebut pada jendela Live Preview di sebelah kanan.
+Impor ke daftar kosong membentuk satu draf per baris yang dikenali. Baris kosong diabaikan; variasi header/tanggal/nama wilayah ditangani. Draf tanpa foto dapat diedit dan dipratinjau A4 dengan placeholder, tidak didecode sebagai gambar.
 
-#### B. Dukungan Upload File Excel / CSV
-- Pengguna dapat mengunduh **Template Spreadsheet (`template_bulk_stamp.xlsx` / `.csv`)**.
-- Struktur kolom sederhana & fleksibel:
-  - `nama_foto` *(opsional)*: Nama file foto (misal `IMG_001.jpg`).
-  - `tanggal`: Tanggal survei (format `YYYY-MM-DD`, `DD/MM/YYYY`, atau teks `25 Okt 2026`).
-  - `lokasi`: Teks bebas nama dusun/desa/kecamatan atau kode ID SLS/SubSLS.
-  - `jam` *(opsional)*: Jam foto. Jika kosong, sistem otomatis membuat jam kerja acak natural (09:00 - 15:59).
-  - `koordinat` *(opsional)*: Koordinat spesifik. Jika kosong, sistem otomatis melakukan random sampling *point-in-polygon* di dalam batas poligon wilayah terkait.
-  - `catatan` *(opsional)*: Catatan tambahan per foto.
-- **Pencocokan Otomatis:**
-  - Jika ada kolom `nama_foto`, dicocokkan berdasarkan kesamaan nama file foto.
-  - Jika tidak ada kolom `nama_foto`, dicocokkan berdasarkan **urutan file (baris 1 = foto 1, baris 2 = foto 2)**.
+| Kolom | Makna |
+| --- | --- |
+| nama_foto | Nama file untuk pencocokan, opsional |
+| tanggal, jam | Tanggal kunjungan dan waktu foto |
+| lokasi | Nama/konteks wilayah atau ID |
+| koordinat, catatan | Koordinat khusus dan catatan foto, opsional |
+| uraian / uraian_kegiatan, tujuan, nama_kegiatan | Narasi, tujuan khusus, kegiatan |
+| nomor_st, tanggal_st, nama_pelaksana, jabatan | Nilai khusus per kunjungan |
 
-#### C. Smart Location Resolver (Fuzzy & Multi-token Matcher)
-- Algoritma pencocokan teks lokal di browser:
-  1. Membersihkan kata stopword lapangan (`dusun`, `rt`, `rw`, `desa`, `kelurahan`, `kecamatan`, `subsls`).
-  2. Mencocokkan multi-token (contoh: `"Jurit Bebuaq"` langsung mengidentifikasi Dusun Jurit di Desa Bebuaq).
-  3. Mengambil titik koordinat valid di dalam poligon hasil pencocokan.
+Pemasangan foto berikutnya:
 
-#### D. Pipeline Unduh Massal (.ZIP) Anti-Freeze
-- Menghindari kehabisan memori (*Out-of-Memory Crash*) pada puluhan foto berukuran besar:
-  - Foto resolusi asli **hanya dimuat ke kanvas saat gilirannya dirender**.
-  - Menggunakan loop sekuensial dengan generator/requestAnimationFrame:
-    `Load File -> Render Offscreen Canvas -> Ekstrak Blob JPEG -> Tambah ke JSZip -> Hapus ImageBitmap -> Update Progress Bar -> Lanjut Foto Berikutnya`.
-  - Mengemas semua hasil ke dalam file arsip: `STAMP_BULK_[YYYYMMDD_HHMMSS].zip`.
+1. Reservasi kecocokan nama aktual atau nama yang diharapkan dari Excel, case-insensitive, dengan/tanpa ekstensi.
+2. Foto tanpa kecocokan dipasang ke kunjungan aktif di preview. Fallback aktif dipakai maksimal sekali per batch agar tidak menimpa berulang.
+3. Foto sisanya menjadi kunjungan baru. Bila belum ada kunjungan aktif sebelumnya, gunakan kunjungan pertama yang tersedia sebagai fallback.
+4. Penggantian dari thumbnail/panel Foto selalu menargetkan ID yang ditangkap sebelum pemilih file dibuka.
 
----
+Pertahankan ID, metadata, narasi, tujuan kustom dan switch photostamp saat foto diganti. Perbarui file, nama, dimensi, thumbnail, status foto; lepaskan resource lama.
 
-### 3.3. Pembuatan Laporan Perjalanan Dinas (Perjadin Generator)
+Pemetaan baris spreadsheet ke kunjungan yang sudah ada perlu tetap dapat diperiksa. Target keamanan pemetaan: nama tidak cocok/ambigu tidak boleh diam-diam menimpa foto lain; pemetaan urutan harus eksplisit. Ini perlu dibuktikan terpisah dari uji impor ke daftar kosong.
 
-Fitur untuk mengonversi foto hasil geotagging menjadi dokumen resmi Laporan Perjalanan Dinas sesuai format baku BPS (Kabupaten Lombok Tengah) secara langsung tanpa perlu menyalin manual ke Microsoft Word.
+## 6. Detail kunjungan dan perlakuan foto
 
-#### A. Format & Tata Letak Dokumen Baku
-- **Dimensi Kertas:** A4 (*210 × 297 mm*).
-- **Margin:** *Narrow* 1 cm (567 twips) pada seluruh sisi.
-- **Tipografi:** Times New Roman 12 pt, spasi proporsional (target tepat 1 halaman per perjalanan/laporan).
-- **Struktur Dokumen:**
-  1. **Judul:** `LAPORAN PERJALANAN DINAS` (Center, Bold).
-  2. **Header Sub-Tabel:**
-     - Kiri: `Perihal : Laporan Perjalanan Dinas [Perihal/Kegiatan]`
-     - Kanan: `Praya, [Tanggal Perjadin]` (Tanggal surat identik dengan tanggal pelaksanaan kegiatan/stamp).
-  3. **Tujuan Surat:**
-     ```text
-     Kepada Yang Terhormat:
-         Kepala BPS Kabupaten Lombok Tengah
-     di
-         Tempat
-     ```
-  4. **Kalimat Pembuka & Logika Surat Tugas (ST):**
-     - Jika Nomor dan Tanggal ST diisi:
-       `"Berdasarkan surat tugas nomor [No ST] tanggal [Tgl ST] bersama ini disampaikan laporan perjalanan dinas kegiatan [Nama Kegiatan] sebagai berikut:"`
-     - Jika Nomor/Tanggal ST dikosongkan (opsional):
-       `"Berdasarkan surat tugas sebelumnya bersama ini disampaikan laporan perjalanan dinas kegiatan [Nama Kegiatan] sebagai berikut:"`
-  5. **Tabel 7 Rincian Informasi:**
-     - 1. Nama: `[Nama Pelaksana]` (wajib, tersimpan di `localStorage`).
-     - 2. Jabatan: Pilihan dropdown {`Statistisi Ahli Pertama`, `Statistisi Ahli Muda`, `Statistisi Ahli Madya`, `Pranata Komputer Ahli Pertama`, `Pranata Komputer Ahli Muda`, `Pranata Komputer Ahli Madya`, `Staff`, `Lainnya (ketik bebas)`}.
-     - 3. Asal Satker: `BPS Kabupaten Lombok Tengah` (tersimpan di `localStorage`).
-     - 4. Tujuan perjalanan: Otomatis default dari wilayah/SLS terpilih pada photo stamp (misal `Desa Pandan Indah, Kecamatan Praya Barat Daya` atau `Dusun Jurit, Bebuaq, Kopang`), dapat diedit bebas oleh pengguna.
-     - 5. Hari, Tanggal: Otomatis mengikuti tanggal pada photo stamp dalam bahasa Indonesia formal (contoh: `Rabu, 29 Juli 2026`).
-     - 6. Uraian kegiatan perjalanan dinas: Dilengkapi preset narasi lapangan BPS siap pakai + editor teks bebas.
-     - 7. Dokumentasi: Gambar foto hasil stamp resolusi teroptimasi (lebar ±9.5 cm).
-  6. **Blok Tanda Tangan:** Sisi kanan bawah dengan format `Pelaksana perjalanan dinas` diikuti spasi tanda tangan dan `[Nama Pelaksana]`.
+- Tanggal, waktu dan hari dapat diketik atau dipilih dari ikon di dalam input. Susun sebaris bila muat; bungkus bila sempit. Popup kalender/jam mengikuti sisi kiri box terkait.
+- Hari otomatis mengikuti perubahan tanggal, tetapi dapat dioverride manual. Nilai efektif digunakan konsisten di daftar, stempel, A4 dan Word. Dropdown Hari menutup saat memilih, klik/fokus keluar atau Escape.
+- Switch **Tambah photostamp** hanya di Detail. On adalah default; off menggunakan foto asli tanpa overlay tambahan. Tidak ada pengaturan unggahan baru atau switch massal pada toolbar seleksi.
+- Mode foto asli menyembunyikan jam/koordinat, tidak mewajibkannya, dan tidak melakukan sampling batas wilayah. Resize/JPEG untuk dokumen tetap diperbolehkan; stempel yang sudah ada tidak dihapus.
+- Preview Foto juga merupakan kontrol untuk mengganti dokumentasi, dapat diakses lewat keyboard.
+- Preset uraian mengisi teks yang dapat diedit. Label baris menyebut preset hanya selama narasinya sesuai; perubahan bebas menjadi Uraian kustom. Pengisian preset untuk seleksi menyatakan cakupannya.
 
-#### B. Pilihan Template Uraian Kegiatan BPS
-1. **Pendataan Berhasil & Lengkap:** Responden kooperatif, kuesioner terisi lengkap sesuai SOP.
-2. **Pendataan Berhasil tapi Data Belum Lengkap:** Memerlukan konfirmasi lanjutan atau dokumen pendukung.
-3. **Pengawasan - Petugas Baik & Sesuai SOP:** Observasi PPL, probing berjalan baik, tahapan tertib SOP.
-4. **Pengawasan - Pembinaan Konsep / Kurang Paham SOP:** Ditemukan keraguan konsep, diberikan penjelasan dan pembinaan langsung.
-5. **Pengawasan - Koreksi Ketelitian / Inkonsistensi:** Ditemukan pertanyaan terlewat/inkonsisten, dilakukan perbaikan bersama.
-6. **Pengawasan - Tempo Wawancara Lambat / Optimalisasi Waktu:** Probing baik namun tempo lambat, evaluasi percepatan alur wawancara.
-7. **Kustom (Ketik Bebas):** Textarea bebas untuk narasi spesifik lainnya.
+## 7. Lokasi dan tujuan perjalanan
 
-#### C. Integrasi Alur Kerja (Single & Bulk)
-- **Mode Satuan:**
-  - Tombol `[ 📄 Buat Laporan Perjadin ]` membuka drawer/modal dengan *Live WYSIWYG A4 Preview*.
-  - Tombol aksi: `[ 📥 Unduh Dokumen Word (.docx) ]` dan `[ 🖨️ Cetak / Simpan PDF ]`.
-- **Mode Massal (Bulk Matrix):**
-  - Tombol `[ 📄 Ekspor Laporan Perjadin (.docx) ]` di header tabel bulk.
-  - Opsi 1: **Gabung 1 Dokumen Word (.docx)** (multi-halaman berurutan dengan Page Break per laporan, persis contoh laporan perjalanan dinas BPS).
-  - Opsi 2: **Dokumen Terpisah (.zip)** berisi file docx individual per foto.
+Sumber hierarki `public/data/hierarchy.json`; batas `public/data/boundaries/{kdkec}.json` dimuat saat diperlukan. Data persiapan berasal dari `peta_sls_20260202.geojson`; file mentah tidak masuk bundle frontend. Koordinat WGS84 [longitude, latitude], format stempel latitude, longitude enam desimal.
 
----
+- Kata kecamatan/desa/kelurahan/dusun/SLS/SubSLS menjadi petunjuk tingkat wilayah. Jangan membuang konteks sehingga Desa Kopang berubah menjadi pencarian SLS bernama Kopang.
+- ID tepat diprioritaskan, lalu nama tepat pada tingkat/konteks yang diminta, awalan/token, kemudian saran typo yang perlu dipilih. Nama ambigu tidak diputuskan dari kandidat pertama.
+- Dropdown menyediakan kecamatan, desa, SLS, SubSLS. SLS ditampilkan sekali dengan jumlah SubSLS; tersedia penelusuran dalam induk dan Lihat hasil lainnya.
+- ID internal dipisahkan dari label manusia serta tujuan laporan. Saat lokasi baru diproses, metadata wilayah lama tidak boleh tetap dianggap valid.
+- Tujuan otomatis berasal dari nama/hierarki **wilayah terpilih**, bukan ID maupun SLS kebetulan tempat titik acak jatuh. Tujuan kustom, termasuk kosong, dipertahankan sampai Gunakan tujuan dari lokasi dipilih. Kosong tetap gagal validasi.
+- Koordinat acak diverifikasi point-in-polygon. Pilihan desa/kecamatan memiliki catatan bahwa koordinat diacak dalam cakupan desa/kelurahan atau kecamatan dan bukan GPS asli foto.
+- Mode foto asli tetap dapat memilih lokasi untuk tujuan otomatis tanpa sampling koordinat. Tujuan juga dapat diketik langsung tanpa lokasi spasial.
 
-## 4. Technical Architecture
+## 8. Profil, dokumen, dan keluaran
 
-### 4.1. Tech Stack
-- **Framework:** React 19 + TypeScript + Vite.
-- **Styling:** Tailwind CSS (Clean slate, high contrast, mobile-friendly).
-- **Spatial Processing:** `@turf/boolean-point-in-polygon`, `@turf/bbox`, `@turf/helpers`.
-- **Archive & File Parsing:**
-  - `jszip` (Client-side zip archiving tanpa backend).
-  - `xlsx` / CSV parser lokal ringan untuk membaca spreadsheet.
-- **Document Generation:**
-  - `docx` (Client-side Microsoft Word DOCX generator tanpa ketergantungan server).
-- **Data Optimization:** `hierarchy.json` (~50 KB) + `boundaries/[kdkec].json` (Lazy loaded).
+Profil Nama, Jabatan, Asal Satker dan ST terakhir disimpan lokal; default satker BPS Kabupaten Lombok Tengah. Jangan mengisi identitas/kegiatan contoh seolah data pengguna. Default tanggal adalah tanggal lokal perangkat; jam default 09–15 dengan menit/detik acak. Default tidak menimpa nilai manual/impor.
 
----
+Dokumen: A4 210 × 297mm, margin 10mm/567 twips seluruh sisi, Times New Roman 12pt. Laporan ringkas satu halaman; konten panjang mengalir ke halaman berikutnya tanpa pemotongan atau pengecilan font di bawah standar. Setiap laporan baru mulai pada halaman baru.
 
-## 5. Non-Functional Requirements
-1. **Zero Backend:** Seluruh logika pengolahan foto, parsing excel, zip packaging, dan pembuatan dokumen Word (.docx) wajib berjalan 100% di browser pengguna.
-2. **Memory Safety:** Membuka 50+ foto berukuran 12MP tidak boleh menyebabkan tab browser crash (wajib menggunakan thumbnail ringan di tabel, melepaskan memori kanvas setelah dimasukkan ke zip/word, dan me-resize gambar dokumen ke lebar maks 1200 px).
-3. **Respon Cepat:** Pencocokan teks wilayah massal harus selesai dalam waktu < 200ms untuk 50 baris data; pembuatan dokumen `.docx` instan (< 100ms per halaman).
-4. **Format Fidelity:** Dokumen `.docx` hasil unduhan wajib membuka sempurna di Microsoft Word dan WPS Office tanpa peringatan berkas korup atau pergeseran margin.
+Struktur: judul LAPORAN PERJALANAN DINAS; perihal dan Praya/tanggal; tujuan surat kepada Kepala BPS Kabupaten Lombok Tengah; pembuka ST; rincian Nama, Jabatan, Asal Satker, Tujuan, Hari/Tanggal, Uraian, Dokumentasi; tanda tangan pelaksana.
+
+ST opsional. Jika nomor tersedia, pembuka menyebut nomor dan tanggal bila tersedia. Jika nomor kosong, gunakan: “Berdasarkan surat tugas sebelumnya bersama ini disampaikan laporan perjalanan dinas kegiatan [Nama Kegiatan] sebagai berikut:”.
+
+Gambar dokumen proporsional, lebar sekitar 9,5cm sesuai layout, maksimal 1200px dan JPEG sekitar 85%. Ini terpisah dari ekspor foto mandiri yang harus mempertahankan resolusi asli bila fitur itu digunakan.
+
+Menu **Ekspor & cetak**:
+
+- Word gabungan dan ZIP Word terpisah: gunakan seleksi bila ada; jika tidak, semua laporan. Nyatakan cakupan.
+- Cetak laporan terpilih: hanya yang dicentang; tidak aktif tanpa seleksi. Siapkan dokumen terisolasi dari UI/zoom preview, A4 tanpa margin ganda, lalu buka dialog cetak browser. Bersihkan setelah selesai. Jangan memicu printer langsung.
+- Validasi foto, identitas, kegiatan, tanggal, tujuan dan uraian. Mode stempel juga memerlukan waktu serta lokasi/koordinat valid. Jangan melewati laporan bermasalah tanpa penjelasan.
+
+Preview A4 menggunakan tinggi konten terukur untuk pagination, jumlah halaman, persentase zoom, zoom masuk/keluar dan default fit-to-box seluruh halaman. Kesetaraan halaman browser dengan Word/WPS tidak boleh diasumsikan tanpa uji.
+
+## 9. Notifikasi dan performa
+
+Notifikasi bertipe eksplisit: hijau berhasil, kuning peringatan/berhasil dengan catatan, merah gagal/validasi. Hilang setelah 3 detik tanpa klik; klik memulai ulang timer, tombol tutup menutup langsung. Pesan identik yang muncul kembali mendapat timer baru. Progres proses dan status kelengkapan tetap mengikuti keadaan, bukan timer notifikasi.
+
+Daftar menyimpan File dan thumbnail maksimal 150px. Hanya foto aktif didecode untuk preview; eksport/print menyiapkan foto sekuensial dan melepaskan bitmap/canvas tiap giliran. Payload terkompresi boleh ditahan untuk dokumen gabungan. Jangan menyimpan puluhan canvas resolusi penuh.
+
+Target update metadata preview aktif <30ms setelah foto/data siap. Upload/decode/fetch/ekspor asinkron dengan progres. Ukur batch 10/50/100 foto termasuk >10MB; catat perangkat, waktu dan memori. Target bukan bukti hasil pengukuran.
+
+## 10. Kriteria penerimaan
+
+- Foto-first, spreadsheet-first, input gabungan, draf tanpa foto dan pemasangan foto kemudian bekerja tanpa duplikasi yang tidak dimaksud.
+- Nama cocok diprioritaskan; fallback aktif, klik thumbnail vs baris, seleksi dan penghapusan mempertahankan metadata kunjungan lain.
+- Pencarian bertingkat/berkonteks, tujuan otomatis/kustom/kosong dan catatan cakupan koordinat bekerja.
+- Photostamp on/off konsisten pada Foto, A4, Word gabungan, ZIP dan cetak; foto asli tidak diwajibkan mempunyai jam/koordinat.
+- Menu tidak menggeser layout; dropdown Hari menutup sesuai aturan; notifikasi berwarna benar dan hilang/reset dalam 3 detik.
+- Preview pendek/panjang tidak kehilangan teks/foto/tanda tangan; print hanya pilihan dan tidak memuat UI.
+- Layout 1440/768/390px, keyboard, fokus, status HP, empty/loading/error diperiksa pada build produksi.
+- ZIP valid, DOCX terbuka di Word/WPS, pagination dan hasil print/driver, serta uji beban dicatat sebagai verifikasi terpisah. Dokumen ini tidak menyatakan semuanya sudah diuji.

@@ -114,6 +114,11 @@ export interface ResolvedLocationTarget {
 }
 
 export interface BulkPhotoItem {
+  /** Spreadsheet draft: file is an empty placeholder, never decode before a photo is attached. */
+  photoMissing?: boolean;
+  expectedFileName?: string;
+  /** Undefined preserves legacy default: add a stamp. */
+  stampEnabled?: boolean;
   id: string;
   file: File;
   fileName: string;
