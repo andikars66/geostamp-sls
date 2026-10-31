@@ -28,6 +28,7 @@ import {
   FileText,
 } from 'lucide-react';
 import { PerjadinWorkspace } from './components/PerjadinWorkspace';
+import { loadSavedStampSettings, saveSavedStampSettings } from './types';
 import type {
   BoundaryFeature,
   BulkPhotoItem,
@@ -97,6 +98,7 @@ export default function App() {
   // 4. Stamp Configuration State (Shared style settings + Single mode values)
   const [config, setConfig] = useState<StampConfig>(() => {
     const today = getTodayDateString();
+    const saved = loadSavedStampSettings();
     return {
       dateStr: today,
       dayStr: getIndonesianDayName(today) || 'Rabu',
@@ -104,10 +106,15 @@ export default function App() {
       timezoneLabel: 'WITA',
       coordStr: '',
       tagStr: '',
-      fontScale: 1.0,
-      scrimOpacity: 0.68,
-      position: 'bottom-left',
-      showMiniMap: true,
+      fontScale: saved.fontScale,
+      scrimOpacity: saved.scrimOpacity,
+      position: saved.position,
+      showMiniMap: saved.showMiniMap,
+      stampStyle: saved.stampStyle,
+      colorTheme: saved.colorTheme,
+      fontFamily: saved.fontFamily,
+      iconMode: saved.iconMode,
+      themePreset: saved.themePreset,
       customNote: '',
     };
   });
@@ -438,7 +445,12 @@ export default function App() {
   };
 
   // Handle Adding Multiple Photos to Bulk Queue
-  const handleAddBulkFiles = async (fileList: FileList | File[], stampEnabled = true, previewId?: string) => {
+  const handleAddBulkFiles = async (
+    fileList: FileList | File[],
+    stampEnabled = true,
+    previewId?: string,
+    appendOnly = false
+  ) => {
     const files = Array.from(fileList).filter((f) => f.type.startsWith('image/'));
     if (files.length === 0) {
       setErrorMsg('Tidak ada file gambar valid yang dipilih.');
@@ -491,8 +503,15 @@ export default function App() {
 
     if (newItems.length > 0) {
       setBulkItems((prev) => {
-        const assignment = assignPhotos(prev, newItems, previewId || prev[0]?.id);
-        assignment.replacedUrls.forEach(url => URL.revokeObjectURL(url));
+        if (appendOnly) {
+          const updated = [...prev, ...newItems];
+          if (!activeBulkId && updated.length > 0) {
+            setActiveBulkId(updated[0].id);
+          }
+          return updated;
+        }
+        const assignment = assignPhotos(prev, newItems, previewId);
+        assignment.replacedUrls.forEach((url) => URL.revokeObjectURL(url));
         const updated = assignment.items;
         if (!activeBulkId && updated.length > 0) {
           setActiveBulkId(updated[0].id);
@@ -974,6 +993,23 @@ export default function App() {
           singleTujuan={effectiveSingleTujuan}
           bulkItems={bulkItems}
           globalStampConfig={config}
+          onUpdateGlobalStampConfig={(patch) => {
+            setConfig((prev) => {
+              const next = { ...prev, ...patch };
+              saveSavedStampSettings({
+                stampStyle: next.stampStyle,
+                colorTheme: next.colorTheme,
+                fontFamily: next.fontFamily,
+                iconMode: next.iconMode,
+                themePreset: next.themePreset,
+                position: next.position,
+                fontScale: next.fontScale,
+                scrimOpacity: next.scrimOpacity,
+                showMiniMap: next.showMiniMap,
+              });
+              return next;
+            });
+          }}
           initialSubMode={perjadinInitialSubMode}
           onNavigateToStamp={(targetMode) => setAppMode(targetMode)}
           onImportSpreadsheet={handleProcessSpreadsheetFile}

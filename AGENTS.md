@@ -46,7 +46,8 @@ Pedoman implementasi, modifikasi dan perawatan Laper — Laporan Perjadin. Diper
 
 ## 6. Photostamp dan memori
 
-- Switch **Tambah photostamp** hanya di Detail, on secara default; gunakan role switch, aria-checked, keyboard dan fokus terlihat.
+- Switch **Tambah photostamp** hanya di Detail, on secara default; gunakan role switch, aria-checked, keyboard dan fokus terlihat. Sediakan akses ke dialog pengaturan photostamp (Kartu Modern, Banner Bawah, Formal Kedinasan, Teks Minimalis, Kapsul Ringkas) via tombol ikon gear di pojok kanan atas header dan di panel Foto/Detail, dengan live preview real-time dan default **Hitam Putih · Poligon Bersih**.
+- Pengaturan stempel (style layout, paket cepat warna & font, peta mini wilayah, posisi 4 sudut, ukuran teks, kepekatan latar) tersimpan di localStorage (laper_stamp_config_v2) dan berlaku konsisten di Foto, A4, Word gabungan, ZIP dan cetak.
 - Off memakai isi foto asli pada preview/A4/Word/ZIP/cetak, tanpa overlay baru. Jam/koordinat disembunyikan dan tidak wajib; pencarian lokasi untuk tujuan tidak melakukan sampling atau memuat boundaries.
 - Resize/JPEG untuk dokumen diperbolehkan, jangan menghapus stempel bawaan foto. Ganti mode tidak menghapus metadata laporan lain.
 - Daftar hanya File dan thumbnail maksimal 150px. Decode preview hanya foto aktif; tutup bitmap saat berganti/unmount. Jangan decode semua foto besar sekaligus.

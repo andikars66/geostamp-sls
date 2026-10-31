@@ -72,7 +72,7 @@ Tanggal/waktu/hari disusun satu baris bila lebar inspector cukup. Pada inspector
 
 Urutan tetap:
 
-1. Judul Laporan Perjadin dan kalimat penjelas singkat.
+1. Judul Laporan Perjadin, kalimat penjelas singkat, dan tombol ikon gear (SVG) Pengaturan Photostamp di pojok kanan atas.
 2. Ringkasan pegawai, kegiatan, ST; tombol Ubah profil & kegiatan.
 3. Notifikasi dan progres bila ada.
 4. Toolbar **Tambah foto · Impor & template · Ekspor & cetak**.
@@ -113,6 +113,13 @@ Header inspector menampilkan nama foto/draf, hari/tanggal, status, dan **Hapus k
 Detail:
 
 - Switch **Tambah photostamp** berupa track 44 × 24px, thumb putih 18px; on biru, off abu, di kanan label. Gunakan area klik label/target sentuh yang memadai, role switch, aria-checked dan fokus. Tidak ada dropdown perlakuan foto.
+- Saat stempel aktif, tampilkan baris indikator gaya stempel aktif beserta tombol **Atur tampilan** untuk membuka dialog pengaturan stempel.
+- Dialog Pengaturan Photostamp (`<dialog>`):
+  - Bebas dari emoji/ikon dekoratif, pill badge berlapis, atau deskripsi kartu panjang yang mempersempit ruang.
+  - Default tampilan adalah **Hitam Putih · Poligon Bersih** (`colorTheme: 'onyx'`, `iconMode: 'clean-poly'`, `fontFamily: 'jakarta'`, `stampStyle: 'modern-card'`).
+  - Kolom kiri memuat kontrol ringkas dalam satu tampilan tanpa tab: **Paket cepat** (6 tombol 2 kolom dengan indikator warna tunggal), dropdown **Tata letak**, **Warna**, **Huruf**, dan **Peta mini wilayah**, serta tombol segmen **Posisi di foto**, **Ukuran teks**, dan **Kepekatan latar**.
+  - Kolom kanan menampilkan **Pratinjau** real-time (memakai foto kunjungan aktif atau latar netral dengan poligon sampel) serta satu baris ringkasan spesifikasi.
+  - Tombol aksi: **Kembalikan default**, **Batal**, dan **Simpan** (tersimpan ke localStorage `laper_stamp_config_v2`).
 - Off menampilkan penjelasan singkat foto asli, menyembunyikan jam/koordinat; tanggal, hari, tujuan dan uraian tetap bisa diisi.
 - Input tanggal/waktu/hari berupa teks dengan ikon di dalam sisi kanan box; bukan tombol berteks Kalender/Jam di luar input. Input mempunyai ruang kanan untuk ikon.
 - Popup kalender/jam mengikuti anchor kiri box. Pilihan Hari memiliki opsi Senin–Minggu dan menutup pada pilihan, klik di luar, fokus keluar atau Escape.

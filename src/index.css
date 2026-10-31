@@ -30,8 +30,7 @@
   dialog::backdrop {
     overflow: hidden;
     overscroll-behavior: contain;
-    background-color: rgba(0, 0, 0, 0.75);
-    backdrop-filter: blur(4px);
+    background-color: rgba(24, 24, 27, 0.45);
   }
 }
 
@@ -191,4 +190,70 @@ body:has(.report-workspace) header button:has(svg){color:#52525b}
  .report-list .table-datetime-group{grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:6px}
  .report-list .day-label{white-space:nowrap;font-size:12px;background:#f4f4f5;padding:5px 8px;border-radius:4px;color:#27272a}
  .report-list .col-location .location-results{right:0;left:auto;width:min(310px,calc(100vw - 44px));min-width:0}
+}
+
+/* --- Photostamp Settings Trigger & Clean Dialog --- */
+.batch-context-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.report-workspace .btn-stamp-settings-icon{display:flex!important;align-items:center!important;justify-content:center!important;width:38px!important;height:38px!important;min-height:38px!important;max-height:38px!important;padding:0!important;margin:0!important;border:1px solid #d4d4d8!important;border-radius:8px;background:#fff!important;color:#52525b;cursor:pointer;transition:all .15s ease;flex:none;box-sizing:border-box}
+.report-workspace .btn-stamp-settings-icon:hover{background:#f4f4f5!important;color:#18181b;border-color:#a1a1aa!important}
+.report-workspace .btn-stamp-settings-icon:focus-visible{outline:2px solid #1d4ed8;outline-offset:2px}
+.stamp-gear-icon{width:20px;height:20px;stroke-width:1.75;display:block;margin:auto}
+
+.stamp-style-pill-box{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;background:#fafafa;border-radius:6px;border:1px solid #e4e4e7}
+.stamp-style-pill-box span{font-size:13px;color:#3f3f46}
+.stamp-style-pill-box button{font-size:13px!important;padding:6px 10px!important;min-height:32px!important}
+
+.photo-preview-pane{display:flex;flex-direction:column;gap:8px}
+.photo-preview-header-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;background:#fafafa;border-bottom:1px solid #e4e4e7}
+.photo-preview-header-bar span{font-size:13px;color:#3f3f46}
+.photo-stamp-settings-btn{font-size:13px!important;padding:6px 12px!important;min-height:32px!important}
+
+dialog.stamp-settings-dialog{border:0;padding:0;background:transparent;max-width:860px;width:calc(100vw - 32px);max-height:90vh;margin:auto;color:#18181b}
+dialog.stamp-settings-dialog[open]{display:block}
+.stamp-settings-modal{background:#fff;border:1px solid #d4d4d8;border-radius:12px;box-shadow:0 16px 36px rgba(0,0,0,0.14);display:flex;flex-direction:column;overflow:hidden;max-height:90vh}
+.stamp-settings-header{display:flex;align-items:center;justify-content:space-between;padding:16px 24px;border-bottom:1px solid #e4e4e7}
+.stamp-settings-header h2{font-size:16px;font-weight:600;color:#18181b;margin:0}
+.stamp-settings-close{font-size:13px!important;padding:6px 10px!important;min-height:32px!important}
+
+.stamp-settings-body{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:24px;padding:20px 24px;overflow-y:auto;align-items:stretch}
+.stamp-settings-controls{display:flex;flex-direction:column;gap:16px}
+.stamp-field-block{display:flex;flex-direction:column;gap:6px;margin:0}
+.stamp-field-label{font-size:12px;font-weight:600;color:#3f3f46}
+
+.stamp-preset-list{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.stamp-preset-item{display:flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid #d4d4d8;border-radius:6px;background:#fff;color:#27272a;font-size:13px;font-weight:500;text-align:left;min-height:38px;cursor:pointer}
+.stamp-preset-item:hover{background:#fafafa;border-color:#a1a1aa}
+.stamp-preset-item.active{background:#eff6ff;border-color:#1d4ed8;color:#1e3a8a;box-shadow:inset 0 0 0 1px #1d4ed8}
+.stamp-swatch{width:10px;height:10px;border-radius:50%;flex:none}
+.stamp-preset-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.stamp-select-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.stamp-select-grid select{min-height:38px;height:38px;padding:6px 10px;font-size:13px;border-color:#d4d4d8}
+
+.stamp-segment-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.stamp-pair-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.stamp-segment-row{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.stamp-segment-btn{font-size:12px!important;padding:6px 8px!important;min-height:34px!important;border:1px solid #d4d4d8;border-radius:6px;background:#fff;color:#3f3f46;font-weight:500;text-align:center}
+.stamp-segment-btn:hover{background:#fafafa;border-color:#a1a1aa}
+.stamp-segment-btn.active{background:#18181b!important;color:#fff!important;border-color:#18181b!important}
+
+.stamp-settings-preview{display:flex;flex-direction:column;gap:10px;background:#fafafa;padding:16px;border-radius:8px;border:1px solid #e4e4e7}
+.stamp-preview-header{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.stamp-preview-header span{font-size:13px;font-weight:600;color:#27272a}
+.stamp-preview-header small{font-size:12px;color:#71717a;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stamp-preview-canvas-wrap{flex:1;display:grid;place-items:center;background:#e4e4e7;border-radius:6px;overflow:hidden;padding:10px;min-height:260px;border:1px solid #d4d4d8}
+.stamp-preview-canvas{max-width:100%;max-height:320px;width:auto;height:auto;object-fit:contain;border-radius:4px;display:block}
+.stamp-preview-summary{font-size:12px;color:#52525b;line-height:1.4}
+
+.stamp-settings-footer{display:flex;align-items:center;justify-content:space-between;padding:14px 24px;border-top:1px solid #e4e4e7;background:#fafafa;gap:12px}
+.stamp-footer-actions{display:flex;align-items:center;gap:8px}
+.stamp-btn-reset{font-size:13px!important;color:#52525b!important}
+
+@media(max-width:768px){
+  dialog.stamp-settings-dialog{width:calc(100vw - 16px);max-height:94vh}
+  .stamp-settings-body{grid-template-columns:1fr;gap:18px;padding:16px}
+  .stamp-preset-list,.stamp-select-grid,.stamp-pair-row{grid-template-columns:1fr}
+  .stamp-segment-grid{grid-template-columns:1fr 1fr}
+  .stamp-settings-footer{flex-direction:column;align-items:stretch;padding:14px 16px}
+  .stamp-footer-actions{display:grid;grid-template-columns:1fr 1fr}
 }
