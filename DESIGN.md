@@ -1,6 +1,6 @@
 # DESIGN.md — Laper
 
-Acuan desain aktif · Diperbarui 30 Oktober 2026.
+Acuan desain aktif · Diperbarui 31 Oktober 2026.
 
 Dokumen ini mengatur tampilan dan interaksi Laper. [PRD.md](PRD.md) menentukan perilaku produk, [AGENTS.md](AGENTS.md) menentukan pelaksanaan dan verifikasi teknis. Keputusan pengguna terbaru mengalahkan ketiganya. Dokumen audit lama bukan alasan mengembalikan desain yang sudah ditolak.
 
@@ -93,16 +93,16 @@ Menu Ekspor & cetak memuat Word gabungan, ZIP Word terpisah, Cetak laporan terpi
 
 ## 7. Daftar kunjungan dan area kosong
 
-Kolom desktop: checkbox, Dokumentasi, Hari/tanggal/jam/lokasi, Kelengkapan.
+Kolom desktop: checkbox, Dokumentasi, Tanggal / hari, Lokasi, Kelengkapan. Tanggal dan Lokasi berupa kontrol input type-able langsung di dalam tabel dengan alur fokus keyboard `Tab` berurutan (`Tanggal baris 1` → `Lokasi baris 1` → `Tanggal baris 2` → `Lokasi baris 2`).
 
 - Dokumentasi terdiri dari thumbnail tindakan dan teks nama file, label preset/kustom, serta penanda HP.
 - Klik thumbnail membuka pilih/ganti foto untuk ID baris itu. Thumbnail kosong bertuliskan **Klik untuk menambah foto**. Klik nama file/narasi/bagian baris lain membuka detail; keyboard Enter/Space pada baris setara klik baris. Jangan menjadikan seluruh kolom Dokumentasi sebagai tombol ganti foto.
 - Checkbox tidak membuka baris dan harus memiliki label yang menyebut kunjungan. Klik thumbnail tidak ikut membubbling ke aksi buka detail yang berbeda.
 - Hover abu muda meliputi seluruh baris; dokumentasi tidak punya hover sendiri. Thumbnail sebagai affordance kontrol boleh mempunyai feedback ringan. Baris aktif tetap berbeda dari hover dan dari checkbox terpilih.
 - Subteks uraian menyebut nama preset yang sesuai isi. Narasi bebas: **Uraian kustom**; kosong: **Uraian belum diisi**.
-- Mode stamp menampilkan jam WITA; mode tanpa stamp boleh menampilkan **Foto asli**. Hari/tanggal tetap ada.
+- Kolom Tanggal / hari menampilkan input tanggal (dengan pemicu kalender) dan nama hari tanpa menampilkan jam pada tabel daftar kunjungan (jam tetap berada di panel Detail). Kolom Lokasi menampilkan combobox autocomplete wilayah sebagaimana di panel Detail.
 - Status desktop: Siap atau Lengkapi, dengan detail kekurangan di inspector. Tidak ada tombol Hapus pada kolom status.
-- Mobile: **✓ Lengkap** atau **Perlu dilengkapi** tetap terbaca dalam baris, tanpa memerlukan kolom tambahan.
+- Mobile: nama file, label uraian, dan status (**✓ Lengkap** atau **Perlu dilengkapi**) ditempatkan tepat di bawah thumbnail foto di sisi kiri baris, sementara input Tanggal / hari dan Lokasi tersusun rapi di sisi kanan agar keduanya memiliki lebar ketik yang memadai.
 
 Area kosong mempunyai heading **Mulai dari foto atau Excel**, penjelasan draf, tombol **Pilih gambar atau Excel**, dan daftar format. Border dashed yang tenang menandakan drop area. Drag-and-drop menerima gambar/Excel/CSV; jangan memakai ilustrasi dekoratif untuk menggantikan aksi.
 

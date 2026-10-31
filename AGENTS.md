@@ -1,6 +1,6 @@
 # AGENTS.md — Laper
 
-Pedoman implementasi, modifikasi dan perawatan Laper — Laporan Perjadin. Diperbarui 30 Oktober 2026.
+Pedoman implementasi, modifikasi dan perawatan Laper — Laporan Perjadin. Diperbarui 31 Oktober 2026.
 
 ## 1. Acuan dan cara kerja
 

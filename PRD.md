@@ -1,6 +1,6 @@
 # PRD — Laper (Laporan Perjadin)
 
-Status: spesifikasi produk aktif · Diperbarui: 30 Oktober 2026.
+Status: spesifikasi produk aktif · Diperbarui: 31 Oktober 2026.
 
 ## 1. Objektif dan pengguna
 
@@ -33,13 +33,13 @@ Urutan layar: judul dan deskripsi singkat, ringkasan pegawai/kegiatan/ST, notifi
 
 Toolbar hanya **Tambah foto**, **Impor & template**, **Ekspor & cetak**, berdekatan. Tidak ada kolom pencarian kunjungan atau checkbox Perlu dilengkapi. Semua kunjungan tampil. Menu impor/ekspor mengambang di atas konten tanpa menggeser layout.
 
-Daftar memuat thumbnail, nama file, nama preset uraian atau Uraian kustom/Uraian belum diisi, hari, tanggal, jam WITA (atau Foto asli), lokasi dan kelengkapan. Total berasal dari data, bukan angka terpisah.
+Daftar memuat kolom seleksi, **Dokumentasi** (thumbnail, nama file, nama preset uraian atau Uraian kustom/Uraian belum diisi), **Tanggal / hari** (input tanggal type-able beserta nama hari), **Lokasi** (input combobox lokasi type-able dengan autocomplete), dan **Kelengkapan**. Informasi jam tidak ditampilkan pada baris daftar kunjungan (tetap diatur di panel Detail). Pengguna dapat langsung mengubah tanggal dan lokasi di tabel dengan alur keyboard `Tab` berurutan (`Tanggal baris 1` → `Lokasi baris 1` → `Tanggal baris 2` → `Lokasi baris 2`). Total berasal dari data, bukan angka terpisah.
 
 - Klik baris atau Enter/Space membuka detail/preview. Checkbox hanya mengatur seleksi.
 - **Hanya thumbnail kecil** membuka pemilih foto untuk baris itu. Thumbnail kosong bertuliskan **Klik untuk menambah foto**. Nama file dan narasi tetap membuka detail.
 - Hover abu muda berlaku pada seluruh baris; baris aktif dibedakan dengan aksen biru.
 - Hapus kunjungan ada rata kanan pada header panel detail. Hapus N terpilih ada pada toolbar seleksi; kolom Kelengkapan tidak memiliki tombol Hapus.
-- Di HP, daftar dan detail bergantian. Status lengkap/perlu dilengkapi tetap terlihat di dalam baris saat kolom status disembunyikan.
+- Di HP, daftar dan detail bergantian. Nama file dan status lengkap/perlu dilengkapi ditempatkan tepat di bawah thumbnail foto, sedangkan input tanggal/hari dan lokasi tersusun di sisi kanan baris agar tetap nyaman diketik tanpa membuka panel Detail.
 
 ## 5. Impor, draf, dan pemasangan foto
 
@@ -74,7 +74,7 @@ Pemetaan baris spreadsheet ke kunjungan yang sudah ada perlu tetap dapat diperik
 - Switch **Tambah photostamp** hanya di Detail. On adalah default; off menggunakan foto asli tanpa overlay tambahan. Tidak ada pengaturan unggahan baru atau switch massal pada toolbar seleksi.
 - Mode foto asli menyembunyikan jam/koordinat, tidak mewajibkannya, dan tidak melakukan sampling batas wilayah. Resize/JPEG untuk dokumen tetap diperbolehkan; stempel yang sudah ada tidak dihapus.
 - Preview Foto juga merupakan kontrol untuk mengganti dokumentasi, dapat diakses lewat keyboard.
-- Preset uraian mengisi teks yang dapat diedit. Label baris menyebut preset hanya selama narasinya sesuai; perubahan bebas menjadi Uraian kustom. Pengisian preset untuk seleksi menyatakan cakupannya.
+- Preset uraian menyediakan berbagai variasi narasi per skenario (petugas sesuai SOP, responden ramah, responden kurang ramah/sibuk, pembinaan petugas, kunjungan ulang) serta grup preset dengan variasi otomatis (`dengan variasi`) yang mengisi seluruh kunjungan terpilih secara bergiliran dengan konteks yang sama. Label baris menyebut preset hanya selama narasinya sesuai; perubahan bebas menjadi Uraian kustom. Pengisian preset untuk seleksi menyatakan cakupannya.
 
 ## 7. Lokasi dan tujuan perjalanan
 
